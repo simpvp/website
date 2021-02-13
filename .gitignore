@@ -3,5 +3,6 @@
 /docker/volumes/phpbb/phpbb/files
 /docker/volumes/phpbb/phpbb/store
 /docker/volumes/phpbb/phpbb/styles
+/docker/volumes/phpbb/phpbb/config.php
 *.lock
 *.secret

@@ -19,6 +19,7 @@ services:
       PHPBB_DATABASE_USER: "phpbb"
       PHPBB_FORUM_NAME: "simplicitypvp.net"
       PHPBB_FORUM_DESCRIPTION: "simpvp"
+      #NAMI_LOG_LEVEL: trace
     env_file:
       - "phpbb_secrets.secret"
     ports:
