@@ -7,30 +7,31 @@ services:
     image: 'bitnami/phpbb@sha256:feee2dffd6206ab399082d1deb28908db954eddd009134c2220f9d19f72c9960'
     container_name: phpbb
     restart: always
+    networks:
+      website:
+        ipv4_address: 10.137.10.5
     environment:
       # Gateway to host is found using `docker inspect <container-id-or-name> | grep Gateway`
       # For this to work, you need to do
-      # CREATE USER 'phpbb'@'172.20.%' IDENTIFIED BY 'password';
-      # GRANT ALL PRIVILEGES ON phpbb.* TO 'phpbb'@'172.20.%';
-      MARIADB_HOST: "172.20.0.1"
+      # CREATE USER 'phpbb'@'10.137.%' IDENTIFIED BY 'password';
+      # GRANT ALL PRIVILEGES ON phpbb.* TO 'phpbb'@'10.137.%';
       PHPBB_DATABASE_NAME: "phpbb"
       PHPBB_DATABASE_USER: "phpbb"
       PHPBB_FORUM_NAME: "simplicitypvp.net"
       PHPBB_FORUM_DESCRIPTION: "simpvp"
     env_file:
-      - "phpbb_secrets.env"
+      - "phpbb_secrets.secret"
     ports:
       - '4285:80'
     volumes:
       - type: bind
-        source: '/srv/docker/phpbb'
+        source: '/home/web/simpvp_website/docker/volumes/phpbb'
         target: '/bitnami'
-
-
+      - '/home/web/simpvp_website/docker/volumes/phpbb/secrets:/secrets:ro'
 
   # Need to run:
-  # CREATE USER 'mediawiki'@'172.20.%' IDENTIFIED BY 'password';
-  # GRANT ALL PRIVILEGES ON mediawiki.* TO 'mediawiki'@'172.20.%';
+  # CREATE USER 'mediawiki'@'10.137.%' IDENTIFIED BY 'password';
+  # GRANT ALL PRIVILEGES ON mediawiki.* TO 'mediawiki'@'10.137.%';
   mediawiki:
     # 1.32
     #image: 'mediawiki@sha256:349aeb8014b58754ac25ea022ee0c26e399ce18d756ecada7579c3f39d52c5a1'
@@ -39,36 +40,27 @@ services:
     build:
       context: /empty
       dockerfile: /root/mediawiki.Dockerfile
+    networks:
+      website:
+        ipv4_address: 10.137.10.6
     container_name: mediawiki
     restart: always
     ports:
       - 4286:80
     volumes:
-      - '/srv/docker/mediawiki/LocalSettings.php:/var/www/html/LocalSettings.php:ro'
-      - '/srv/docker/mediawiki/.htaccess:/var/www/html/.htaccess:ro'
-      - '/srv/docker/mediawiki/images/:/var/www/html/images'
-      - '/srv/docker/mediawiki/extensions/:/var/www/html/extensions:ro'
+      - '/home/web/simpvp_website/docker/volumes/mediawiki/LocalSettings.php:/var/www/html/LocalSettings.php:ro'
+      - '/home/web/simpvp_website/docker/volumes/mediawiki/secrets:/secrets:ro'
+      - '/home/web/simpvp_website/docker/volumes/mediawiki/.htaccess:/var/www/html/.htaccess:ro'
+      - '/home/web/simpvp_website/docker/volumes/mediawiki/images/:/var/www/html/images'
+      - '/home/web/simpvp_website/docker/volumes/mediawiki/extensions/:/var/www/html/extensions:ro'
+
+networks:
+  website:
+    ipam:
+      config:
+        - subnet: 10.137.0.0/16
+          ip_range: 10.137.10.0/24
+          gateway: 10.137.0.254
 
 
 
-
-  dfw:
-    # 1.0.1
-    image: "pitkley/dfw@sha256:7427e7379cb603d3e34580ee7f3ebd513dbfcdca97255bb0612cce7388bdcf62"
-    container_name: dfw
-    network_mode: host
-    restart: always
-    cap_add:
-      - NET_ADMIN
-    command:
-      - "--config-file"
-      - "/config"
-        #- "--log-level"
-        #- "trace"
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "/srv/config/nftables/dfw.fen.toml:/config"
-    # This depends_on is a hack to just get it working because of the bug
-    # where it can't apply rules if there aren't already any containers
-    depends_on:
-      - phpbb

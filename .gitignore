@@ -1,0 +1,7 @@
+/docker/volumes/mediawiki/images
+/docker/volumes/phpbb/phpbb/images
+/docker/volumes/phpbb/phpbb/files
+/docker/volumes/phpbb/phpbb/store
+/docker/volumes/phpbb/phpbb/styles
+*.lock
+*.secret

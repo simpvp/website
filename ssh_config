@@ -1,0 +1,10 @@
+Host simpvpmaps
+	HostName github.com
+	User git
+	IdentityFile ~/.ssh/github-maps
+Host simpvpwebsite
+	HostName github.com
+	User git
+	IdentityFile ~/.ssh/github-website
+Host *
+	PubkeyAuthentication=yes

@@ -1,0 +1,5 @@
+# The following rules are necessary because nginx will rewrite the urls
+# but the inner mediawiki expects everything to be at the root
+RewriteEngine On
+RewriteOptions Inherit
+RewriteRule ^w/(.*)$ $1
