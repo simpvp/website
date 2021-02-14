@@ -27,8 +27,7 @@ services:
     volumes:
       - type: bind
         source: '/home/web/simpvp_website/docker/volumes/phpbb'
-        target: '/bitnami'
-      - '/home/web/simpvp_website/docker/volumes/phpbb/secrets:/secrets:ro'
+        target: '/bitnami/phpbb'
 
   # Need to run:
   # CREATE USER 'mediawiki'@'10.137.%' IDENTIFIED BY 'password';
