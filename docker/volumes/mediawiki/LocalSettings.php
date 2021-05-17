@@ -216,8 +216,8 @@ $wgMaxShellMemory = 2024000;
 #$wgTmpDirectory = "/home/web/SIMPVP_MEDIAWIKI_TMPDIR";
 
 # Enable debug
-$wgShowExceptionDetails = true;
-$wgShowDBErrorBacktrace = true;
-$wgShowSQLErrors = true;
-error_reporting( -1 );
-ini_set( 'display_errors', 1 );
+#$wgShowExceptionDetails = true;
+#$wgShowDBErrorBacktrace = true;
+#$wgShowSQLErrors = true;
+#error_reporting( -1 );
+#ini_set( 'display_errors', 1 );
