@@ -171,23 +171,26 @@ function lfTOSLink( $sk, &$tpl ) {
 	return true;
 }
 
-# Add 'Register' link to header for users who aren't logged in
-$wgHooks['PersonalUrls'][] = 'lfTopUrls';
-function lfTopUrls( &$urls, $title, $skin ) {
-	global $wgUser;
-	if ($wgUser->isAnon()) {
-		$urls = array('register' => array(
-			'text' => 'Register',
-			'href' => '/forum/ucp.php?mode=register',
-		)) + $urls;
-	}
-
-	return true;
-}
-
 # Miscelleanous settings
 wfLoadExtension( 'ParserFunctions' );
 wfLoadExtension( 'CheckUser' );
+
+# Signup captcha
+wfLoadExtensions([ 'ConfirmEdit', 'ConfirmEdit/QuestyCaptcha' ]);
+$wgCaptchaTriggers['edit']          = false;
+$wgCaptchaTriggers['create']        = false;
+$wgCaptchaTriggers['createtalk']    = false;
+$wgCaptchaTriggers['addurl']        = false;
+$wgCaptchaTriggers['createaccount'] = true;
+$wgCaptchaTriggers['badlogin']      = true;
+# This is fine. It's not like bots are gonna be able to read this git repo
+# anyway to get the answer.
+$wgCaptchaQuestions = [
+    "Login to the Minecraft server and type /captcha. Enter the secret word in the form:" => [ 'cactus' ],
+];
+
+# Disable the prompt for 'real name' on user signup
+$wgHiddenPrefs[] = 'realname';
 
 # Allow sysops to edit Special:Interwiki
 wfLoadExtension( 'Interwiki' );
@@ -218,58 +221,3 @@ $wgShowDBErrorBacktrace = true;
 $wgShowSQLErrors = true;
 error_reporting( -1 );
 ini_set( 'display_errors', 1 );
-
-/*-----------------[ Everything below this line for mediawiki-phpbb. ]-----------------*/
-
-    // PHPBB User Database Plugin. (Requires MySQL Database)
-    require_once "$IP/extensions/Auth_phpbb.php";
-
-    $wgAuth_Config = array(); // Clean.
-
-    $wgAuth_Config['WikiGroupName'] = array('Wiki');       // Name of your PHPBB group
-                                                    // users need to be a member
-                                                    // of to use the wiki. (i.e. wiki)
-                                                    // This can also be set to an array 
-                                                    // of group names to use more then 
-                                                    // one. (ie. 
-                                                    // $wgAuth_Config['WikiGroupName'][] = 'Wiki';
-                                                    // $wgAuth_Config['WikiGroupName'][] = 'Wiki2';
-                                                    // or
-                                                    // $wgAuth_Config['WikiGroupName'] = array('Wiki', 'Wiki2');
-                                                    // )
-
-
-    $wgAuth_Config['UseWikiGroup'] = false;          // This tells the Plugin to require
-                                                    // a user to be a member of the above
-                                                    // phpBB group. (ie. wiki) Setting
-                                                    // this to false will let any phpBB
-                                                    // user edit the wiki.
-
-    $wgAuth_Config['UseExtDatabase'] = true;       // This tells the plugin that the phpBB tables
-                                                    // are in a different database then the wiki.
-                                                    // The default settings is false.
-
-    $wgAuth_Config['MySQL_Host']        = '10.137.0.254';      // phpBB MySQL Host Name.
-    $wgAuth_Config['MySQL_Username']    = 'phpbb';       // phpBB MySQL Username.
-    $wgAuth_Config['MySQL_Password']    = file_get_contents("/secrets/phpbbDBpassword.secret");       // phpBB MySQL Password.
-    $wgAuth_Config['MySQL_Database']    = 'phpbb';       // phpBB MySQL Database Name.
-
-    $wgAuth_Config['UserTB']         = 'phpbb_users';       // Name of your PHPBB user table. (i.e. phpbb_users)
-    $wgAuth_Config['GroupsTB']       = 'phpbb_groups';      // Name of your PHPBB groups table. (i.e. phpbb_groups)
-    $wgAuth_Config['User_GroupTB']   = 'phpbb_user_group';  // Name of your PHPBB user_group table. (i.e. phpbb_user_group)
-    $wgAuth_Config['PathToPHPBB']    = '/phpBB3';         // Path from this file to your phpBB install.
-    $wgAuth_Config['UseCanonicalCase'] = true;
-
-    $wgAuth_Config['UseWikiProfile'] = false; // Whether the extension checks for a custom username profile // field in phpBB when the phpBB username is incompatible with // MediaWiki username restrictions.
-
-$wgAuth_Config['ProfileDataTB'] = 'phpbb_profile_fields_data'; // Name of your phpBB profile data table. (e.g. phpbb_profile_fields_data)
-
-$wgAuth_Config['ProfileFieldName'] = 'pf_wikiusername'; // Name of your phpBB custom profile field // The 'pf_' is always prefixed to the custom field name you choose. // e.g., "wikiusername" becomes "pf_wikiusername"
-
-    // Local
-    $wgAuth_Config['LoginMessage']   = '<b>You need a phpBB account to login.</b><br /><a href="' . $wgAuth_Config['PathToPHPBB'] .
-                                       'ucp.php?mode=register">Click here to create an account.</a>'; // Localize this message.
-    $wgAuth_Config['NoWikiError']    = 'You are not a member of the required phpBB group. Ask for permission to login on the forum.'; // Localize this message.
-
-    $wgAuth = new Auth_phpBB($wgAuth_Config);     // Auth_phpBB Plugin.
-
