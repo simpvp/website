@@ -47,6 +47,8 @@ services:
         ipv4_address: 10.137.10.6
     container_name: mediawiki
     restart: always
+    # 'web' user
+    user: "1003"
     ports:
       - 4286:80
     volumes:
