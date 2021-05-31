@@ -1,24 +1,31 @@
 /**
- * Adds a link to Special:MultiLock on a central wiki if $wgCheckUserCAMultiLock
- * is configured on the Special:CheckUser's block form
+ * Enhance Special:CheckUser's block form with a link to CentralAuth's
+ * Special:MultiLock (if installed)
  */
-( function ( mw, $ ) {
-	var centralURL = mw.config.get( 'wgCUCAMultiLockCentral' ),
-		$userCheckboxes = $( '#checkuserresults li :checkbox' );
+( function () {
+	var $userCheckboxes,
+		centralURL = mw.config.get( 'wgCUCAMultiLockCentral' );
+
+	if ( !centralURL ) {
+		// Ignore. Either this isn't a block form, or CentralAuth isn't setup.
+		return;
+	}
 
 	// Initialize the link
+	// eslint-disable-next-line no-jquery/no-global-selector
 	$( '#checkuserblock fieldset' ).append(
-		$( '<a>', {
+		$( '<a>' ).attr( {
 			id: 'cacu-multilock-link',
-			text: mw.msg( 'checkuser-centralauth-multilock' ),
 			href: centralURL
-		} )
+		} ).text( mw.msg( 'checkuser-centralauth-multilock' ) )
 	);
 
 	// Change the URL of the link when a checkbox's state is changed
+	// eslint-disable-next-line no-jquery/no-global-selector
+	$userCheckboxes = $( '#checkuserresults li [type=checkbox]' );
 	$userCheckboxes.on( 'change', function () {
 		var names = [];
-		$.each( $userCheckboxes.serializeArray(), function ( i, obj ) {
+		$userCheckboxes.serializeArray().forEach( function ( obj ) {
 			if ( obj.name && obj.name === 'users[]' ) {
 				// Only registered accounts (not IPs) can be locked
 				if ( !mw.util.isIPAddress( obj.value ) ) {
@@ -27,9 +34,12 @@
 			}
 		} );
 
-		var mlHref = centralURL + '?wpTarget=' + encodeURIComponent( names.join( '\n' ) );
 		// Update the href of the link with the latest change
-		$( '#cacu-multilock-link' ).prop( 'href', mlHref );
+		// eslint-disable-next-line no-jquery/no-global-selector
+		$( '#cacu-multilock-link' ).prop(
+			'href',
+			centralURL + '?wpTarget=' + encodeURIComponent( names.join( '\n' ) )
+		);
 	} );
 
-}( mediaWiki, jQuery ) );
+}() );

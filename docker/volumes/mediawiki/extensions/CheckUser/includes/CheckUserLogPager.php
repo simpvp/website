@@ -4,7 +4,7 @@ use Wikimedia\Rdbms\IResultWrapper;
 
 class CheckUserLogPager extends ReverseChronologicalPager {
 	/**
-	 * @var array $searchConds
+	 * @var array
 	 */
 	protected $searchConds;
 
@@ -19,16 +19,14 @@ class CheckUserLogPager extends ReverseChronologicalPager {
 		$this->getDateCond( $conds['year'], $conds['month'] );
 	}
 
-	function formatRow( $row ) {
+	public function formatRow( $row ) {
 		$user = Linker::userLink( $row->cul_user, $row->user_name );
 
-		if ( $row->cul_type == 'userips' || $row->cul_type == 'useredits' ) {
-			$target = Linker::userLink( $row->cul_target_id, $row->cul_target_text ) .
-					Linker::userToolLinks( $row->cul_target_id, $row->cul_target_text );
-		} else {
-			$target = $row->cul_target_text;
-		}
+		$target = Linker::userLink( $row->cul_target_id, $row->cul_target_text ) .
+			Linker::userToolLinks( $row->cul_target_id, trim( $row->cul_target_text ) );
 
+		$lang = $this->getLanguage();
+		$contextUser = $this->getUser();
 		// Give grep a chance to find the usages:
 		// checkuser-log-entry-userips, checkuser-log-entry-ipedits,
 		// checkuser-log-entry-ipusers, checkuser-log-entry-ipedits-xff
@@ -38,9 +36,9 @@ class CheckUserLogPager extends ReverseChronologicalPager {
 				'checkuser-log-entry-' . $row->cul_type,
 				$user,
 				$target,
-				$this->getLanguage()->timeanddate( wfTimestamp( TS_MW, $row->cul_timestamp ), true ),
-				$this->getLanguage()->date( wfTimestamp( TS_MW, $row->cul_timestamp ), true ),
-				$this->getLanguage()->time( wfTimestamp( TS_MW, $row->cul_timestamp ), true )
+				$lang->userTimeAndDate( wfTimestamp( TS_MW, $row->cul_timestamp ), $contextUser ),
+				$lang->userDate( wfTimestamp( TS_MW, $row->cul_timestamp ), $contextUser ),
+				$lang->userTime( wfTimestamp( TS_MW, $row->cul_timestamp ), $contextUser )
 			)->text() .
 			Linker::commentBlock( $row->cul_reason ) .
 			'</li>';
@@ -49,7 +47,7 @@ class CheckUserLogPager extends ReverseChronologicalPager {
 	/**
 	 * @return string
 	 */
-	function getStartBody() {
+	public function getStartBody() {
 		if ( $this->getNumRows() ) {
 			return '<ul>';
 		} else {
@@ -60,7 +58,7 @@ class CheckUserLogPager extends ReverseChronologicalPager {
 	/**
 	 * @return string
 	 */
-	function getEndBody() {
+	public function getEndBody() {
 		if ( $this->getNumRows() ) {
 			return '</ul>';
 		} else {
@@ -71,23 +69,29 @@ class CheckUserLogPager extends ReverseChronologicalPager {
 	/**
 	 * @return string
 	 */
-	function getEmptyBody() {
+	public function getEmptyBody() {
 		return '<p>' . $this->msg( 'checkuser-empty' )->escaped() . '</p>';
 	}
 
-	function getQueryInfo() {
+	public function getQueryInfo() {
+		// Filter out log entries from Special:Investigate
+		$excludeType = $this->mDb->addQuotes( 'investigate' );
 		return [
 			'tables' => [ 'cu_log', 'user' ],
 			'fields' => $this->selectFields(),
-			'conds' => array_merge( $this->searchConds, [ 'user_id = cul_user' ] )
+			'conds' => array_merge(
+				$this->searchConds,
+				[ 'user_id = cul_user' ],
+				[ 'cul_type != ' . $excludeType ]
+			)
 		];
 	}
 
-	function getIndexField() {
+	public function getIndexField() {
 		return 'cul_timestamp';
 	}
 
-	function selectFields() {
+	public function selectFields() {
 		return [
 			'cul_id', 'cul_timestamp', 'cul_user', 'cul_reason', 'cul_type',
 			'cul_target_id', 'cul_target_text', 'user_name'

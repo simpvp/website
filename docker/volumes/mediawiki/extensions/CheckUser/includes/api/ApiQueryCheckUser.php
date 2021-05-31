@@ -1,5 +1,9 @@
 <?php
 
+use MediaWiki\MediaWikiServices;
+use MediaWiki\Revision\RevisionRecord;
+use Wikimedia\IPUtils;
+
 /**
  * CheckUser API Query Module
  */
@@ -10,15 +14,19 @@ class ApiQueryCheckUser extends ApiQueryBase {
 
 	public function execute() {
 		$db = $this->getDB();
-		$params = $this->extractRequestParams();
 
-		list( $request, $target, $reason, $timecond, $limit, $xff ) = [
-			$params['request'], $params['target'], $params['reason'],
-			$params['timecond'], $params['limit'], $params['xff'] ];
+		[
+			'request' => $request,
+			'target' => $target,
+			'reason' => $reason,
+			'timecond' => $timecond,
+			'limit' => $limit,
+			'xff' => $xff,
+		] = $this->extractRequestParams();
 
 		$this->checkUserRightsAny( 'checkuser' );
 
-		if ( $this->getConfig()->get( 'CheckUserForceSummary' ) && is_null( $reason ) ) {
+		if ( $this->getConfig()->get( 'CheckUserForceSummary' ) && $reason === null ) {
 			$this->dieWithError( 'apierror-checkuser-missingsummary', 'missingdata' );
 		}
 
@@ -43,7 +51,8 @@ class ApiQueryCheckUser extends ApiQueryBase {
 				}
 
 				$this->addFields( [ 'cuc_timestamp', 'cuc_ip', 'cuc_xff' ] );
-				$this->addWhereFld( 'cuc_user_text', $target );
+				// @phan-suppress-next-line PhanTypeMismatchArgumentNullable T240141
+				$this->addWhereFld( 'cuc_user', $user_id );
 				$res = $this->select( __METHOD__ );
 				$result = $this->getResult();
 
@@ -53,8 +62,10 @@ class ApiQueryCheckUser extends ApiQueryBase {
 					$ip = strval( $row->cuc_ip );
 
 					if ( !isset( $ips[$ip] ) ) {
-						$ips[$ip]['end'] = $timestamp;
-						$ips[$ip]['editcount'] = 1;
+						$ips[$ip] = [
+							'end' => $timestamp,
+							'editcount' => 1
+						];
 					} else {
 						$ips[$ip]['start'] = $timestamp;
 						$ips[$ip]['editcount']++;
@@ -75,7 +86,7 @@ class ApiQueryCheckUser extends ApiQueryBase {
 				break;
 
 			case 'edits':
-				if ( IP::isIPAddress( $target ) ) {
+				if ( IPUtils::isIPAddress( $target ) ) {
 					$cond = SpecialCheckUser::getIpConds( $db, $target, isset( $xff ) );
 					if ( !$cond ) {
 						$this->dieWithError( 'apierror-badip', 'invalidip' );
@@ -90,18 +101,19 @@ class ApiQueryCheckUser extends ApiQueryBase {
 					$log_type[] = 'ip';
 				} else {
 					$user_id = User::idFromName( $target );
-					if ( !$user_id ) {
+					if ( $user_id === null ) {
 						$this->dieWithError(
 							[ 'nosuchusershort', wfEscapeWikiText( $target ) ], 'nosuchuser'
 						);
 					}
-					$this->addWhereFld( 'cuc_user_text', $target );
+					// @phan-suppress-next-line PhanTypeMismatchArgumentNullable T240141
+					$this->addWhereFld( 'cuc_user', $user_id );
 					$log_type = [ 'useredits', 'user' ];
 				}
 
 				$this->addFields( [
 					'cuc_namespace', 'cuc_title', 'cuc_user_text', 'cuc_actiontext', 'cuc_this_oldid',
-					'cuc_comment', 'cuc_minor', 'cuc_timestamp', 'cuc_ip', 'cuc_xff', 'cuc_agent'
+					'cuc_comment', 'cuc_minor', 'cuc_timestamp', 'cuc_ip', 'cuc_xff', 'cuc_agent', 'cuc_type'
 				] );
 
 				$res = $this->select( __METHOD__ );
@@ -117,36 +129,51 @@ class ApiQueryCheckUser extends ApiQueryBase {
 						'ip'        => $row->cuc_ip,
 						'agent'     => $row->cuc_agent,
 					];
+
 					if ( $row->cuc_actiontext ) {
 						$edit['summary'] = $row->cuc_actiontext;
 					} elseif ( $row->cuc_comment ) {
-						$rev = Revision::newFromId( $row->cuc_this_oldid );
-						if ( !$rev ) {
-							$dbr = wfGetDB( DB_REPLICA );
-							$queryInfo = Revision::getArchiveQueryInfo();
-							$tmp = $dbr->selectRow(
-								$queryInfo['tables'],
-								$queryInfo['fields'],
-								[ 'ar_rev_id' => $row->cuc_this_oldid ],
-								__METHOD__,
-								[],
-								$queryInfo['joins']
-							);
-							if ( $tmp ) {
-								$rev = Revision::newFromArchiveRow( $tmp );
+						$edit['summary'] = $row->cuc_comment;
+						if ( $row->cuc_this_oldid != 0 &&
+							( $row->cuc_type == RC_EDIT || $row->cuc_type == RC_NEW )
+						) {
+							$revRecord = MediaWikiServices::getInstance()
+								->getRevisionLookup()
+								->getRevisionById( $row->cuc_this_oldid );
+							if ( !$revRecord ) {
+								$dbr = wfGetDB( DB_REPLICA );
+								$queryInfo = MediaWikiServices::getInstance()
+									->getRevisionStore()
+									->getArchiveQueryInfo();
+								$tmp = $dbr->selectRow(
+									$queryInfo['tables'],
+									$queryInfo['fields'],
+									[ 'ar_rev_id' => $row->cuc_this_oldid ],
+									__METHOD__,
+									[],
+									$queryInfo['joins']
+								);
+								if ( $tmp ) {
+									$revRecord = MediaWikiServices::getInstance()
+										->getRevisionFactory()
+										->newRevisionFromArchiveRow( $tmp );
+								}
 							}
-						}
-						if ( !$rev ) {
-							// This shouldn't happen, CheckUser points to a revision
-							// that isn't in revision nor archive table?
-							throw new Exception(
-								"Couldn't fetch revision cu_changes table links to (cuc_this_oldid {$row->cuc_this_oldid})"
-							);
-						}
-						if ( $rev->userCan( Revision::DELETED_COMMENT ) ) {
-							$edit['summary'] = $row->cuc_comment;
-						} else {
-							$edit['summary'] = $this->msg( 'rev-deleted-comment' )->text();
+							if ( !$revRecord ) {
+								// This shouldn't happen, CheckUser points to a revision
+								// that isn't in revision nor archive table?
+								throw new Exception(
+									"Couldn't fetch revision cu_changes table links to " .
+										"(cuc_this_oldid {$row->cuc_this_oldid})"
+								);
+							}
+							if ( !RevisionRecord::userCanBitfield(
+								$revRecord->getVisibility(),
+								RevisionRecord::DELETED_COMMENT,
+								$this->getUser()
+							) ) {
+								$edit['summary'] = $this->msg( 'rev-deleted-comment' )->text();
+							}
 						}
 					}
 					if ( $row->cuc_minor ) {
@@ -159,7 +186,7 @@ class ApiQueryCheckUser extends ApiQueryBase {
 				}
 
 				SpecialCheckUser::addLogEntry( $log_type[0], $log_type[1],
-					$target, $reason, isset( $user_id ) ? $user_id : '0' );
+					$target, $reason, $user_id ?? '0' );
 				$result->addValue( [
 					'query', $this->getModuleName() ], 'edits', $edits );
 				$result->addIndexedTagName( [
@@ -167,7 +194,7 @@ class ApiQueryCheckUser extends ApiQueryBase {
 				break;
 
 			case 'ipusers':
-				if ( IP::isIPAddress( $target ) ) {
+				if ( IPUtils::isIPAddress( $target ) ) {
 					$cond = SpecialCheckUser::getIpConds( $db, $target, isset( $xff ) );
 					$this->addWhere( $cond );
 					$log_type = 'ipusers';
@@ -176,6 +203,7 @@ class ApiQueryCheckUser extends ApiQueryBase {
 					}
 				} else {
 					$this->dieWithError( 'apierror-badip', 'invalidip' );
+					throw new LogicException();
 				}
 
 				$this->addFields( [
@@ -191,10 +219,12 @@ class ApiQueryCheckUser extends ApiQueryBase {
 					$agent = $row->cuc_agent;
 
 					if ( !isset( $users[$user] ) ) {
-						$users[$user]['end'] = wfTimestamp( TS_ISO_8601, $row->cuc_timestamp );
-						$users[$user]['editcount'] = 1;
-						$users[$user]['ips'][] = $ip;
-						$users[$user]['agents'][] = $agent;
+						$users[$user] = [
+							'end' => wfTimestamp( TS_ISO_8601, $row->cuc_timestamp ),
+							'editcount' => 1,
+							'ips' => [ $ip ],
+							'agents' => [ $agent ]
+						];
 					} else {
 						$users[$user]['start'] = wfTimestamp( TS_ISO_8601, $row->cuc_timestamp );
 						$users[$user]['editcount']++;
@@ -251,11 +281,11 @@ class ApiQueryCheckUser extends ApiQueryBase {
 			],
 			'reason'   => null,
 			'limit'    => [
-				ApiBase::PARAM_DFLT => 1000,
+				ApiBase::PARAM_DFLT => 500,
 				ApiBase::PARAM_TYPE => 'limit',
 				ApiBase::PARAM_MIN  => 1,
 				ApiBase::PARAM_MAX  => 500,
-				ApiBase::PARAM_MAX2 => 5000,
+				ApiBase::PARAM_MAX2 => $this->getConfig()->get( 'CheckUserMaximumRowCount' ),
 			],
 			'timecond' => [
 				ApiBase::PARAM_DFLT => '-2 weeks'
@@ -278,7 +308,7 @@ class ApiQueryCheckUser extends ApiQueryBase {
 	}
 
 	public function getHelpUrls() {
-		return 'https://www.mediawiki.org/wiki/Extension:CheckUser#API';
+		return 'https://www.mediawiki.org/wiki/Special:MyLanguage/Extension:CheckUser#API';
 	}
 
 	public function needsToken() {

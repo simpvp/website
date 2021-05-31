@@ -1,4 +1,7 @@
 <?php
+
+use MediaWiki\MediaWikiServices;
+
 if ( getenv( 'MW_INSTALL_PATH' ) ) {
 	$IP = getenv( 'MW_INSTALL_PATH' );
 } else {
@@ -9,7 +12,7 @@ require_once "$IP/maintenance/Maintenance.php";
 class PurgeOldData extends Maintenance {
 	public function __construct() {
 		parent::__construct();
-		$this->mDescription = "Purge expired rows in CheckUser and RecentChanges";
+		$this->addDescription( 'Purge expired rows in CheckUser and RecentChanges' );
 		$this->setBatchSize( 200 );
 
 		$this->requireExtension( 'CheckUser' );
@@ -33,6 +36,8 @@ class PurgeOldData extends Maintenance {
 
 	protected function prune( $table, $ts_column, $maxAge ) {
 		$dbw = wfGetDB( DB_MASTER );
+
+		$lbFactory = MediaWikiServices::getInstance()->getDBLoadBalancerFactory();
 
 		$expiredCond = "$ts_column < " . $dbw->addQuotes( $dbw->timestamp( time() - $maxAge ) );
 
@@ -60,12 +65,12 @@ class PurgeOldData extends Maintenance {
 			$count += $dbw->affectedRows();
 			$this->commitTransaction( $dbw, __METHOD__ );
 
-			wfWaitForSlaves();
+			$lbFactory->waitForReplication();
 		}
 
 		return $count;
 	}
 }
 
-$maintClass = "PurgeOldData";
+$maintClass = PurgeOldData::class;
 require_once RUN_MAINTENANCE_IF_MAIN;

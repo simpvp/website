@@ -1,5 +1,7 @@
 <?php
 
+use Wikimedia\IPUtils;
+
 $IP = getenv( 'MW_INSTALL_PATH' );
 if ( $IP === false ) {
 	$IP = __DIR__ . '/../../..';
@@ -65,12 +67,12 @@ class ImportCheckUserLogs extends Maintenance {
 		];
 
 		foreach ( $regexes as $type => $regex ) {
-			$m = false;
+			$m = [];
 			if ( preg_match( $regex, $line, $m ) ) {
 				$data = [
 					'timestamp' => strtotime( $m['timestamp'] ),
 					'user' => $m['user'],
-					'reason' => isset( $m['reason'] ) ? $m['reason'] : '',
+					'reason' => $m['reason'] ?? '',
 					'type' => $type,
 					'wiki' => $m['wiki'],
 					'target' => $m['target'] ];
@@ -99,7 +101,7 @@ class ImportCheckUserLogs extends Maintenance {
 				// Local wiki lookups...
 				$user = User::newFromName( $data['user'] );
 
-				list( $start, $end ) = IP::parseRange( $data['target'] );
+				list( $start, $end ) = IPUtils::parseRange( $data['target'] );
 				if ( $start === false ) {
 					$targetUser = User::newFromName( $data['target'] );
 					$targetID = $targetUser ? $targetUser->getId() : 0;
@@ -131,7 +133,7 @@ class ImportCheckUserLogs extends Maintenance {
 
 				$matched++;
 			}
-			$unmatched ++;
+			$unmatched++;
 		}
 
 		$this->output(
@@ -163,5 +165,5 @@ class ImportCheckUserLogs extends Maintenance {
 	}
 }
 
-$maintClass = 'ImportCheckUserLogs';
+$maintClass = ImportCheckUserLogs::class;
 require_once RUN_MAINTENANCE_IF_MAIN;

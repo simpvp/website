@@ -1,7 +1,10 @@
 {
 	"@metadata": {
 		"authors": [
+			"Bencemac",
 			"Bináris",
+			"Csega",
+			"Csigabi",
 			"Dani",
 			"Dj",
 			"Dorgan",
@@ -11,9 +14,7 @@
 			"KossuthRad",
 			"Terik",
 			"Tgr",
-			"Wolf Rex",
-			"Bencemac",
-			"Csigabi"
+			"Wolf Rex"
 		]
 	},
 	"checkuser-summary": "Ez az eszköz végigvizsgálja a friss változásokat, hogy lekérje egy adott felhasználó IP-címeit vagy megjelenítse egy adott IP-címet használó szerkesztőket és az IP szerkesztéseit.\nEgy proxy mögötti kliens eredeti adatai XFF-fejlécek segítségével kérhetőek le, az IP-cím utáni „/xff” parancssal. Az IPv4 (CIDR $1-32) és az IPv6 (CIDR $2-128) is támogatott.\nMaximum 5000 szerkesztés fog megjelenni teljesítményi okok miatt. Az eszközt a szabályoknak megfelelően használd.",
@@ -70,7 +71,6 @@
 	"checkuser-block-limit": "Túl sok szerkesztőt választottál ki.",
 	"checkuser-block-noreason": "Meg kell adnod a blokkolások okát.",
 	"checkuser-noreason": "Meg kell adnod a lekérdezés okát.",
-	"checkuser-accounts": "{{PLURAL:$1|egy|$1}} új felhasználói fiók",
 	"checkuser-too-many": "Túl sok találat (a lekérdezési becslés szerint), kérlek, szűkítsd le a CIDR-t.\nItt vannak a használt IP-címek (maximum 5000, cím alapján rendezve):",
 	"checkuser-user-nonexistent": "A megadott szerkesztő nem létezik.",
 	"checkuser-search": "Keresés a naplófájlokban",
@@ -83,10 +83,10 @@
 	"checkuser-showmain": "Vissza az IP-ellenőri oldalra",
 	"checkuser-limited": "'''Teljesítményi okok miatt nem az összes találat lett megjelenítve.'''",
 	"checkuser-log-entry-userips": "$3; $1 lekérte $2 IP-címeit",
-	"checkuser-log-entry-ipedits": "$3; $1 lekérte $2 szerkesztéseit",
-	"checkuser-log-entry-ipusers": "$3; $1 lekérte a(z) $2 IP-címet használók neveit",
-	"checkuser-log-entry-ipedits-xff": "$3; $1 lekérte XFF $2 szerkesztéseit",
-	"checkuser-log-entry-ipusers-xff": "$3; $1 lekérte az XFF $2 IP-címet használók neveit",
+	"checkuser-log-entry-ipedits": "$3; $1 lekérte <bdi>$2</bdi> szerkesztéseit",
+	"checkuser-log-entry-ipusers": "$3; $1 lekérte a(z) <bdi>$2</bdi> IP-címet használók neveit",
+	"checkuser-log-entry-ipedits-xff": "$3; $1 lekérte XFF <bdi>$2</bdi> szerkesztéseit",
+	"checkuser-log-entry-ipusers-xff": "$3; $1 lekérte az XFF <bdi>$2</bdi> IP-címet használók neveit",
 	"checkuser-log-entry-useredits": "$3; $1 lekérte $2 szerkesztéseit",
 	"checkuser-autocreate-action": "automatikusan létrehozva",
 	"checkuser-create-action": "készült",
@@ -95,24 +95,5 @@
 	"checkuser-token-fail": "Munkamenethiba. Kérlek próbáld újra.",
 	"checkuser-login-failure": "Nem sikerült belépned a(z) {{SITENAME}} oldalra mint $1",
 	"checkuser-login-success": "Sikeresen beléptél a(z) {{SITENAME}} oldalra mint $1",
-	"apihelp-query+checkuser-description": "A megadott felhasználónév által használt IP-címek vagy egy megadott IP-cím által használt felhasználónevek ellenőrzése.",
-	"apihelp-query+checkuser-summary": "A megadott felhasználónév által használt IP-címek vagy egy megadott IP-cím által használt felhasználónevek ellenőrzése.",
-	"apihelp-query+checkuser-param-request": "IP-ellenőri kérelemtípusok:\n;userips:Konkrét felhasználó IP-címeinek lekérdezése.\n;edits:Konkrét IP vagy tartomány közreműködéseinek lekérdezése.\n;ipusers:Konkrét IP-t vagy tartományt használó felhasználók lekérdezése.",
-	"apihelp-query+checkuser-param-target": "Ellenőrizendő felhasználói név, IP-cím vagy CIDR tartomány.",
-	"apihelp-query+checkuser-param-reason": "Az ellenőrzés oka.",
-	"apihelp-query+checkuser-param-timecond": "Felhasználói adatok időlimitje (pl. „-2 weeks” vagy „2 weeks ago”).",
-	"apihelp-query+checkuser-param-xff": "XFF-adat használata IP-cím helyett.",
-	"apihelp-query+checkuser-example-1": "[[User:Example]] IP-címeinek ellenőrzése",
-	"apihelp-query+checkuser-example-2": "192.0.2.0/24 szerkesztéseinek ellenőrzése",
-	"apihelp-query+checkuserlog-description": "Bejegyzések lekérése az IP-ellenőri naplóból",
-	"apihelp-query+checkuserlog-summary": "Bejegyzések lekérése az IP-ellenőri naplóból",
-	"apihelp-query+checkuserlog-param-user": "Az IP-ellenőr neve.",
-	"apihelp-query+checkuserlog-param-target": "Ellenőrzött felhasználó, IP-cím vagy CIDR tartomány.",
-	"apihelp-query+checkuserlog-param-from": "Listázás ettől az időbélyegtől.",
-	"apihelp-query+checkuserlog-param-to": "Listázás eddig az időbélyegig.",
-	"apihelp-query+checkuserlog-example-1": "[[User:Example]] ellenőrzéseinek mutatása",
-	"apihelp-query+checkuserlog-example-2": "192.0.2.0/24 ellenőrzéseinek mutatása 2011-10-15T23:00:00Z után",
-	"apierror-checkuser-missingsummary": "Meg kell adnod az ellenőrzés okát.",
-	"apierror-checkuser-timelimit": "Helyes időlimitet kell használnod (pl. „-2 weeks” vagy „2 weeks ago”).",
-	"apierror-checkuser-invalidmode": "Érvénytelen kérésmód."
+	"checkuser-investigate-preliminary-table-header-blocked": "Állapot"
 }

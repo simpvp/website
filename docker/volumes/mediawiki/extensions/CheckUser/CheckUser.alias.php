@@ -12,6 +12,9 @@ $specialPageAliases = [];
 $specialPageAliases['en'] = [
 	'CheckUser' => [ 'CheckUser' ],
 	'CheckUserLog' => [ 'CheckUserLog' ],
+	'Investigate' => [ 'Investigate' ],
+	'InvestigateBlock' => [ 'InvestigateBlock' ],
+	'InvestigateLog' => [ 'InvestigateLog' ],
 ];
 
 /** Arabic (العربية) */
@@ -181,6 +184,8 @@ $specialPageAliases['gu'] = [
 $specialPageAliases['he'] = [
 	'CheckUser' => [ 'בדיקת_משתמש' ],
 	'CheckUserLog' => [ 'יומן_בדיקת_משתמשים' ],
+	'Investigate' => [ 'חקירה' ],
+	'InvestigateLog' => [ 'יומן_חקירות' ],
 ];
 
 /** Hindi (हिन्दी) */
@@ -400,14 +405,16 @@ $specialPageAliases['sq'] = [
 	'CheckUser' => [ 'KontrolloPërdorues' ],
 ];
 
-/** Serbian (Cyrillic script) (српски (ћирилица)‎) */
+/** Serbian (Cyrillic script) (српски (ћирилица)) */
 $specialPageAliases['sr-ec'] = [
 	'CheckUser' => [ 'Провери_корисника', 'ПровериКорисника' ],
+	'CheckUserLog' => [ 'Дневник_чекјузера', 'ДневникЧекјузера' ],
 ];
 
-/** Serbian (Latin script) (srpski (latinica)‎) */
+/** Serbian (Latin script) (srpski (latinica)) */
 $specialPageAliases['sr-el'] = [
 	'CheckUser' => [ 'Proveri_korisnika', 'ProveriKorisnika' ],
+	'CheckUserLog' => [ 'Dnevnik_čekjuzera', 'DnevnikČekjuzera' ],
 ];
 
 /** Swedish (svenska) */

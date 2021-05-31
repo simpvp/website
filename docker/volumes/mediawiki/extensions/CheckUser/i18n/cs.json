@@ -3,6 +3,7 @@
 		"authors": [
 			"Beren",
 			"Danny B.",
+			"Dvorapa",
 			"Li-sung",
 			"Mormegil"
 		]
@@ -62,7 +63,6 @@
 	"checkuser-block-noreason": "Musíte zadat důvod blokování",
 	"checkuser-centralauth-multilock": "Hromadně zamknout vybrané účty",
 	"checkuser-noreason": "K tomuto dotazu musíte uvést důvod.",
-	"checkuser-accounts": "$1 {{PLURAL:$1|nový účet|nové účty|nových účtů}}",
 	"checkuser-too-many": "Příliš mnoho výsledků (podle odhadu dotazu), zkuste omezit CIDR.\nNíže jsou použité IP adresy (nejvýše 5000, seřazené podle adresy):",
 	"checkuser-user-nonexistent": "Zadaný uživatel neexistuje.",
 	"checkuser-search": "Hledání v záznamech kontroly uživatelů",
@@ -75,10 +75,10 @@
 	"checkuser-showmain": "Přepnout na hlavní formulář Kontroly uživatele",
 	"checkuser-limited": "'''Výsledky byly z výkonnostních důvodů zkráceny.'''",
 	"checkuser-log-entry-userips": "$3, $1 zjišťuje IP adresy uživatele $2",
-	"checkuser-log-entry-ipedits": "$3, $1 zjišťuje editace z $2",
-	"checkuser-log-entry-ipusers": "$3, $1 zjišťuje uživatele z $2",
-	"checkuser-log-entry-ipedits-xff": "$3, $1 zjišťuje editace s XFF $2",
-	"checkuser-log-entry-ipusers-xff": "$3, $1 zjišťuje uživatele s XFF $2",
+	"checkuser-log-entry-ipedits": "$3, $1 zjišťuje editace z <bdi>$2</bdi>",
+	"checkuser-log-entry-ipusers": "$3, $1 zjišťuje uživatele z <bdi>$2</bdi>",
+	"checkuser-log-entry-ipedits-xff": "$3, $1 zjišťuje editace s XFF <bdi>$2</bdi>",
+	"checkuser-log-entry-ipusers-xff": "$3, $1 zjišťuje uživatele s XFF <bdi>$2</bdi>",
 	"checkuser-log-entry-useredits": "$3, $1 zjišťuje editace uživatele $2",
 	"checkuser-autocreate-action": "byl automaticky vytvořen",
 	"checkuser-create-action": "byl vytvořen",
@@ -86,5 +86,7 @@
 	"checkuser-reset-action": "požádal o nové heslo pro uživatele „$1“",
 	"checkuser-token-fail": "Chyba relace. Zkuste to prosím znovu.",
 	"checkuser-login-failure": "Neúspěšný pokus o přihlášení do {{grammar:2sg|{{SITENAME}}}} jako $1",
-	"checkuser-login-success": "Úspěšné přihlášení do {{grammar:2sg|{{SITENAME}}}} jako $1"
+	"checkuser-login-success": "Úspěšné přihlášení do {{grammar:2sg|{{SITENAME}}}} jako $1",
+	"group-checkuser.css": "/* Zde uvedené CSS bude ovlivňovat pouze revizory */",
+	"group-checkuser.js": "/* Zde uvedený JavaScript bude použit pouze pro revizory */"
 }
