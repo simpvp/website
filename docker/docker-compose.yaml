@@ -1,12 +1,14 @@
 version: '3.7'
 services:
   phpbb:
-    # 3.2.3
-    #image: 'bitnami/phpbb@sha256:4c2de5efac3373fb8df6f56be939ce71052df3668d53037a920b5a0594f42a04'
     # 3.3.0
-    image: 'bitnami/phpbb@sha256:feee2dffd6206ab399082d1deb28908db954eddd009134c2220f9d19f72c9960'
+    #image: 'bitnami/phpbb@sha256:feee2dffd6206ab399082d1deb28908db954eddd009134c2220f9d19f72c9960'
+    # 3.3.4
+    image: "bitnami/phpbb@sha256:ecfcdc2c04cf704238b1fe19893daeaf3f53e80e7565e7358099bd2316a66a7f"
     container_name: phpbb
     restart: always
+    # 'web' user
+    user: "1003"
     networks:
       website:
         ipv4_address: 10.137.10.5
@@ -23,7 +25,7 @@ services:
     env_file:
       - "phpbb_secrets.secret"
     ports:
-      - '4285:80'
+      - '4285:8080'
     volumes:
       - type: bind
         source: '/home/web/simpvp_website/docker/volumes/phpbb'
