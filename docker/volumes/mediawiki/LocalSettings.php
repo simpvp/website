@@ -48,15 +48,24 @@ $wgLogo             = "/images/deflowvesper_logo_black_135.png";
 
 ## UPO means: this is also a user preference option
 
-$wgEnableEmail = false;
-$wgEnableUserEmail = false; # UPO
+$wgEnableEmail = true;
+$wgEnableUserEmail = false;
+$wgEmailAuthentication = true;
+
+$wgSMTP = [
+    'host'     => 'tls://mail.simplicitypvp.net',
+    'IDHost'   => 'simplicitypvp.net',
+    'port'     => 588,
+    'auth'     => true,
+    'username' => 'admin@simplicitypvp.net',
+    'password' => file_get_contents("/secrets/wgSMTPpassword.secret")
+];
 
 $wgEmergencyContact = "admin@simplicitypvp.net";
 $wgPasswordSender = "admin@simplicitypvp.net";
 
 $wgEnotifUserTalk = false; # UPO
 $wgEnotifWatchlist = false; # UPO
-$wgEmailAuthentication = false;
 
 ## Database settings
 $wgDBtype = "mysql";
