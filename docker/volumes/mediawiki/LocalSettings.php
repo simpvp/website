@@ -207,6 +207,8 @@ $wgGroupPermissions['sysop']['interwiki'] = true;
 
 # Trust reverse proxy X-Forwarded-For header
 $wgUsePrivateIPs = true;
+$wgCdnServersNoPurge = [];
+$wgCdnServersNoPurge[] = "10.137.0.0/16";
 $wgSquidServersNoPurge = array( '10.137.0.0/16' );
 
 # Enable server side image resizing
