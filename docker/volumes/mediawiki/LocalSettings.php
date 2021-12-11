@@ -69,7 +69,7 @@ $wgEnotifWatchlist = false; # UPO
 
 ## Database settings
 $wgDBtype = "mysql";
-$wgDBserver = "10.137.0.254";
+$wgDBserver = "10.137.0.1";
 $wgDBname = "mediawiki";
 $wgDBuser = "mediawiki";
 $wgDBpassword = file_get_contents("/secrets/wgDBpassword.secret");
