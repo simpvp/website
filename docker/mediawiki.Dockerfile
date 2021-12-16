@@ -1,5 +1,5 @@
-# 1.35.4
-FROM mediawiki@sha256:7883e1a6161d0a7becac4d5a63c47eed7e6e0e2821feb74d9388079d905e3a32
+# 1.35.5
+FROM mediawiki@sha256:5136032f6977de841db6a8959cefe2775ad7d5573025b2e273dab8ce90654d05
 
 # For image resizing support (for thumbnails)
 # Taken from https://github.com/docker-library/docs/blob/master/php/README.md
