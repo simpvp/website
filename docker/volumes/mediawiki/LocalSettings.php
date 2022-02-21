@@ -84,7 +84,7 @@ $wgDBTableOptions = "ENGINE=InnoDB, DEFAULT CHARSET=binary";
 $wgDBmysql5 = false;
 
 ## Shared memory settings
-$wgMainCacheType = CACHE_NONE;
+$wgMainCacheType = CACHE_ACCEL;
 $wgMemCachedServers = array();
 
 ## To enable image uploads, make sure the 'images' directory
@@ -183,6 +183,13 @@ function lfTOSLink( $sk, &$tpl ) {
 # Miscelleanous settings
 wfLoadExtension( 'ParserFunctions' );
 wfLoadExtension( 'CheckUser' );
+
+# For structured discussions /flow
+wfLoadExtension( 'Echo' );
+wfLoadExtension( 'Flow' );
+$wgGroupPermissions['*']['flow-edit-post'] = false;
+$wgGroupPermissions['sysop']['flow-create-board'] = true;
+$wgGroupPermissions['sysop']['flow-edit-post'] = false;
 
 # Signup captcha
 wfLoadExtensions([ 'ConfirmEdit', 'ConfirmEdit/QuestyCaptcha' ]);
