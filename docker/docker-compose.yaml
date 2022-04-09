@@ -33,10 +33,6 @@ services:
   # CREATE USER 'mediawiki'@'10.137.%' IDENTIFIED BY 'password';
   # GRANT ALL PRIVILEGES ON mediawiki.* TO 'mediawiki'@'10.137.%';
   mediawiki:
-    # 1.32
-    #image: 'mediawiki@sha256:349aeb8014b58754ac25ea022ee0c26e399ce18d756ecada7579c3f39d52c5a1'
-    # 1.34
-    #image: 'mediawiki@sha256:c3fa0aac98b741a40d9d40cf931d4e339578d02226d7f47f85a1270fee260bc4'
     build:
       context: /empty
       dockerfile: /root/mediawiki.Dockerfile
