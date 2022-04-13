@@ -1,8 +1,8 @@
 version: '3.7'
 services:
   phpbb:
-    # 3.3.5
-    image: "bitnami/phpbb@sha256:b11e6ce5d0de729de95149a1c1ec20d509e2f0fdb366d0abf5ee9662bb4021d7"
+    # 3.3.7
+    image: "bitnami/phpbb@sha256:fd8043ec1e73fe839af8de643195e7a4b8c97350ef02158abf656cc40db7c98a"
     container_name: phpbb
     restart: always
     # 'web' user
