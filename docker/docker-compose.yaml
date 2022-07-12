@@ -10,6 +10,8 @@ services:
     networks:
       website:
         ipv4_address: 10.137.10.5
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       # Gateway to host is found using `docker inspect <container-id-or-name> | grep Gateway`
       # For this to work, you need to do
@@ -39,6 +41,8 @@ services:
     networks:
       website:
         ipv4_address: 10.137.10.6
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     container_name: mediawiki
     restart: always
     # 'web' user
