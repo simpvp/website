@@ -1,4 +1,7 @@
-/docker/volumes/mediawiki/images
+/docker/volumes/mediawiki/images/deleted
+/docker/volumes/mediawiki/images/lockdir
+/docker/volumes/mediawiki/images/thumb
+/docker/volumes/mediawiki/images/temp
 /docker/volumes/phpbb/images
 /docker/volumes/phpbb/files
 /docker/volumes/phpbb/store

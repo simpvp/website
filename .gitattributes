@@ -1,0 +1,3 @@
+* annex.backend=SHA256
+* annex.largefiles=nothing
+/docker/volumes/mediawiki/images/** annex.largefiles=anything
