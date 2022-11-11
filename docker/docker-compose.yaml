@@ -55,6 +55,7 @@ services:
       - '/home/web/simpvp_website/docker/volumes/mediawiki/.htaccess:/var/www/html/.htaccess:ro'
       - '/home/web/simpvp_website/docker/volumes/mediawiki/images/:/var/www/html/images'
       - '/home/web/simpvp_website/docker/volumes/mediawiki/extensions/:/var/www/html/extensions:ro'
+      - '/home/web/simpvp_website/.git/annex/objects:/.git/annex/objects:ro'
 
 networks:
   website:
