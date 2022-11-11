@@ -46,7 +46,7 @@ services:
     container_name: mediawiki
     restart: always
     # 'web' user
-    user: "1004"
+    user: "1003"
     ports:
       - 4286:80
     volumes:
