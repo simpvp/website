@@ -58,7 +58,7 @@ $wgSMTP = [
 ];
 
 $wgEmergencyContact = "admin@simplicitypvp.net";
-$wgPasswordSender = "admin@simplicitypvp.net";
+$wgPasswordSender = "noreply@simplicitypvp.net";
 
 $wgEnotifUserTalk = false; # UPO
 $wgEnotifWatchlist = false; # UPO
