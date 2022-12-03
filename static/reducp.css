@@ -1,0 +1,30 @@
+body {
+	margin: 3em auto;
+}
+
+p {
+	font-size: 125%;
+	margin-left: 2em auto;
+	margin-right: 2em auto;
+}
+
+#contentcaptcha {
+	margin-left: auto;
+	margin-right: auto;
+	background-color: #F8664F;
+	color: white;
+	border-radius: 2em;
+	box-shadow: 1em 1em 1em #888;
+	text-align: center;
+	overflow: auto;
+	margin: 3em auto;
+	max-width: 50em;
+}
+
+#banner {
+	margin: 3em;
+}
+
+#logo {
+	border: 0px none;
+}
