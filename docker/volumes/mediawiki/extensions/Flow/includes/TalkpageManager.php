@@ -2,20 +2,26 @@
 
 namespace Flow;
 
-use CentralAuthUser;
-use ContentHandler;
 use ExtensionRegistry;
 use Flow\Content\BoardContent;
 use Flow\Exception\InvalidInputException;
 use Flow\Model\Workflow;
+use MediaWiki\Extension\CentralAuth\User\CentralAuthUser;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Revision\SlotRecord;
+use MediaWiki\User\UserGroupManager;
 use Status;
 use Title;
 use User;
+use WikiMap;
 use WikiPage;
 
 class TalkpageManager implements OccupationController {
+	/**
+	 * @var UserGroupManager
+	 */
+	private $userGroupManager;
+
 	/**
 	 * @var string[]
 	 */
@@ -26,6 +32,13 @@ class TalkpageManager implements OccupationController {
 	 * @var User
 	 */
 	protected $talkPageManagerUser;
+
+	/**
+	 * @param UserGroupManager $userGroupManager
+	 */
+	public function __construct( UserGroupManager $userGroupManager ) {
+		$this->userGroupManager = $userGroupManager;
+	}
 
 	/**
 	 * When a page is taken over by Flow, add a revision.
@@ -65,12 +78,11 @@ class TalkpageManager implements OccupationController {
 			}
 		}
 
-		$status = $page->doEditContent(
+		$status = $page->doUserEditContent(
 			new BoardContent( CONTENT_MODEL_FLOW_BOARD, $workflow->getId() ),
+			$this->getTalkpageManager(),
 			wfMessage( 'flow-talk-taken-over-comment' )->plain(),
-			EDIT_FORCE_BOT | EDIT_SUPPRESS_RC,
-			false,
-			$this->getTalkpageManager()
+			EDIT_FORCE_BOT | EDIT_SUPPRESS_RC
 		);
 		$value = $status->getValue();
 		$value['already-existed'] = false;
@@ -97,14 +109,16 @@ class TalkpageManager implements OccupationController {
 	 * @inheritDoc
 	 */
 	public function checkIfUserHasPermission( Title $title, User $user ) {
+		$services = MediaWikiServices::getInstance();
 		if (
 			// If the title is default-Flow, the user always has permission
-			ContentHandler::getDefaultModelFor( $title ) === CONTENT_MODEL_FLOW_BOARD ||
+			$services->getSlotRoleRegistry()->getRoleHandler( SlotRecord::MAIN )
+				->getDefaultModel( $title ) === CONTENT_MODEL_FLOW_BOARD ||
 
 			// Gate this on the flow-create-board right, essentially giving
 			// wiki communities control over if Flow board creation is allowed
 			// to everyone or just a select few.
-			MediaWikiServices::getInstance()->getPermissionManager()
+			$services->getPermissionManager()
 				->userCan( 'flow-create-board', $user, $title )
 		) {
 			return Status::newGood();
@@ -152,17 +166,18 @@ class TalkpageManager implements OccupationController {
 	 * turn into a Flow board was allowed to create (with allowedPageNames)
 	 *
 	 * @param Title $title
+	 * @param User $user
 	 * @return bool
 	 */
-	public function canBeUsedOn( Title $title ) {
-		global $wgUser;
-
+	public function canBeUsedOn( Title $title, User $user ) {
 		// If the user has rights, mark the page as allowed
 		// For MovePage
-		$this->safeAllowCreation( $title, $wgUser, /* $mustNotExist = */ true );
+		$this->safeAllowCreation( $title, $user, /* $mustNotExist = */ true );
 
 		return // default content model already
-			ContentHandler::getDefaultModelFor( $title ) === CONTENT_MODEL_FLOW_BOARD ||
+			MediaWikiServices::getInstance()->getSlotRoleRegistry()->getRoleHandler( SlotRecord::MAIN )
+				->getDefaultModel( $title ) === CONTENT_MODEL_FLOW_BOARD ||
+
 			// explicitly allowed via safeAllowCreation()
 			in_array( $title->getPrefixedDBkey(), $this->allowedPageNames );
 	}
@@ -182,16 +197,16 @@ class TalkpageManager implements OccupationController {
 		if ( ExtensionRegistry::getInstance()->isLoaded( 'CentralAuth' ) ) {
 			// Attach to CentralAuth if a global account already
 			// exists
-			$ca = CentralAuthUser::getMasterInstance( $user );
+			$ca = CentralAuthUser::getPrimaryInstance( $user );
 			if ( $ca->exists() && !$ca->isAttached() ) {
-				$ca->attach( wfWikiID(), 'admin' );
+				$ca->attach( WikiMap::getCurrentWikiId(), 'admin' );
 			}
 		}
 
-		$groups = $user->getGroups();
+		$groups = $this->userGroupManager->getUserGroups( $user );
 		foreach ( [ 'bot', 'flow-bot' ] as $group ) {
 			if ( !in_array( $group, $groups ) ) {
-				$user->addGroup( $group );
+				$this->userGroupManager->addUserToGroup( $user, $group );
 			}
 		}
 

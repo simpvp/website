@@ -12,10 +12,11 @@ use LinkBatch;
 use MediaWiki\MediaWikiServices;
 use ParserOutput;
 use Title;
-use WikiPage;
+use WikiMap;
 
 class LinksTableUpdater {
 
+	/** @var ManagerGroup */
 	protected $storage;
 
 	/**
@@ -27,17 +28,9 @@ class LinksTableUpdater {
 
 	public function doUpdate( Workflow $workflow ) {
 		$title = $workflow->getArticleTitle();
-		$page = WikiPage::factory( $title );
-		$content = $page->getContent();
-		$updates = [];
-		// Must have an article ID in order for LinksUpdate to not fail in getSecondaryDataUpdates.
-		if ( $content !== null && $title->getArticleID( Title::GAID_FOR_UPDATE ) ) {
-			$updates = $content->getSecondaryDataUpdates( $title );
-		}
+		$page = MediaWikiServices::getInstance()->getWikiPageFactory()->newFromTitle( $title );
 
-		foreach ( $updates as $update ) {
-			DeferredUpdates::addUpdate( $update, DeferredUpdates::PRESEND );
-		}
+		$page->doSecondaryDataUpdates( [ 'defer' => DeferredUpdates::PRESEND ] );
 	}
 
 	/**
@@ -76,7 +69,7 @@ class LinksTableUpdater {
 			} elseif ( $reference->getType() === 'file' ) {
 				if ( $reference instanceof WikiReference ) {
 					// Only local images supported
-					$parserOutput->mImages[$reference->getTitle()->getDBkey()] = true;
+					$parserOutput->addImage( $reference->getTitle()->getDBkey() );
 				}
 			} elseif ( $reference->getType() === 'template' ) {
 				if ( $reference instanceof WikiReference ) {
@@ -92,23 +85,23 @@ class LinksTableUpdater {
 		foreach ( $internalLinks as $title ) {
 			$ns = $title->getNamespace();
 			$dbk = $title->getDBkey();
-			if ( !isset( $parserOutput->mLinks[$ns] ) ) {
-				$parserOutput->mLinks[$ns] = [];
+			if ( !isset( $parserOutput->getLinks()[$ns] ) ) {
+				$parserOutput->getLinks()[$ns] = [];
 			}
 
 			$id = $linkCache->getGoodLinkID( $title->getPrefixedDBkey() );
-			$parserOutput->mLinks[$ns][$dbk] = $id;
+			$parserOutput->getLinks()[$ns][$dbk] = $id;
 		}
 
 		foreach ( $templates as $title ) {
 			$ns = $title->getNamespace();
 			$dbk = $title->getDBkey();
-			if ( !isset( $parserOutput->mTemplates[$ns] ) ) {
-				$parserOutput->mTemplates[$ns] = [];
+			if ( !isset( $parserOutput->getTemplates()[$ns] ) ) {
+				$parserOutput->getTemplates()[$ns] = [];
 			}
 
 			$id = $linkCache->getGoodLinkID( $title->getPrefixedDBkey() );
-			$parserOutput->mTemplates[$ns][$dbk] = $id;
+			$parserOutput->getTemplates()[$ns][$dbk] = $id;
 		}
 	}
 
@@ -116,7 +109,7 @@ class LinksTableUpdater {
 		$wikiReferences = $this->storage->find(
 			'WikiReference',
 			[
-				'ref_src_wiki' => wfWikiID(),
+				'ref_src_wiki' => WikiMap::getCurrentWikiId(),
 				'ref_src_namespace' => $title->getNamespace(),
 				'ref_src_title' => $title->getDBkey(),
 			]
@@ -125,7 +118,7 @@ class LinksTableUpdater {
 		$urlReferences = $this->storage->find(
 			'URLReference',
 			[
-				'ref_src_wiki' => wfWikiID(),
+				'ref_src_wiki' => WikiMap::getCurrentWikiId(),
 				'ref_src_namespace' => $title->getNamespace(),
 				'ref_src_title' => $title->getDBkey(),
 			]

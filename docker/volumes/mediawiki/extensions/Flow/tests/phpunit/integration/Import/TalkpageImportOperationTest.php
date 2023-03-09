@@ -30,7 +30,8 @@ use User;
  * @group Flow
  * @group Database
  */
-class TalkpageImportOperationTest extends \MediaWikiTestCase {
+class TalkpageImportOperationTest extends \MediaWikiIntegrationTestCase {
+	/** @inheritDoc */
 	protected $tablesUsed = [
 		// importer will ensureFlowRevision(), which will insert into these core tables
 		'page',
@@ -39,7 +40,7 @@ class TalkpageImportOperationTest extends \MediaWikiTestCase {
 		'text',
 	];
 
-	protected function setUp() : void {
+	protected function setUp(): void {
 		parent::setUp();
 
 		// reset flow state, so everything ($container['permissions'])
@@ -63,14 +64,12 @@ class TalkpageImportOperationTest extends \MediaWikiTestCase {
 			->disableOriginalConstructor()
 			->getMock();
 		$stored = [];
-		$storage->expects( $this->any() )
-			->method( 'put' )
-			->will( $this->returnCallback( function ( $obj ) use( &$stored ) {
+		$storage->method( 'put' )
+			->will( $this->returnCallback( static function ( $obj ) use( &$stored ) {
 				$stored[] = $obj;
 			} ) );
-		$storage->expects( $this->any() )
-			->method( 'multiPut' )
-			->will( $this->returnCallback( function ( $objs ) use( &$stored ) {
+		$storage->method( 'multiPut' )
+			->will( $this->returnCallback( static function ( $objs ) use( &$stored ) {
 				$stored = array_merge( $stored, $objs );
 			} ) );
 

@@ -7,11 +7,11 @@ use Flow\Container;
 use Flow\Data\FlowObjectCache;
 use Flow\Model\UUID;
 use HashBagOStuff;
-use MediaWikiTestCase;
+use MediaWikiIntegrationTestCase;
 use WANObjectCache;
 
-class FlowTestCase extends MediaWikiTestCase {
-	protected function setUp() : void {
+class FlowTestCase extends MediaWikiIntegrationTestCase {
+	protected function setUp(): void {
 		Container::reset();
 		parent::setUp();
 	}
@@ -41,10 +41,22 @@ class FlowTestCase extends MediaWikiTestCase {
 	}
 
 	protected function resetPermissions() {
-		$registry = new ExtensionRegistry();
-		$data = $registry->readFromQueue( [ __DIR__ . '/../../extension.json' => 1 ] );
-		$perms = $data['globals']['wgGroupPermissions'];
-		unset( $perms[$registry::MERGE_STRATEGY] );
+		static $perms = null;
+
+		if ( !$perms ) {
+			$registry = new ExtensionRegistry();
+			$data = $registry->readFromQueue( [ __DIR__ . '/../../extension.json' => 1 ] );
+
+			if ( isset( $data['config']['GroupPermissions'] ) ) {
+				// new extension info structure
+				$perms = $data['config']['GroupPermissions'];
+			} else {
+				// old extension info structure
+				$perms = $data['globals']['wgGroupPermissions'];
+			}
+			unset( $perms[$registry::MERGE_STRATEGY] );
+		}
+
 		global $wgGroupPermissions;
 		$this->setMwGlobals( 'wgGroupPermissions', wfArrayPlus2d( $perms, $wgGroupPermissions ) );
 	}

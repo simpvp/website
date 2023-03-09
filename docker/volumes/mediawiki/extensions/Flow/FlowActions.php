@@ -48,7 +48,7 @@ use Flow\RevisionActionPermissions;
  * * moduleStyles: Style modules to insert with RL to html page for this action instead of the defaults
  * * hasUserGeneratedContent: Whether this action renders a page consisting of user-generated content
  */
-$wgFlowActions = [
+return [
 	'create-header' => [
 		'performs-writes' => true,
 		'log_type' => false,
@@ -117,8 +117,6 @@ $wgFlowActions = [
 			'mediawiki.ui.button',
 			'mediawiki.ui.input',
 			'ext.flow.styles.base',
-			'ext.flow.board.styles',
-			'ext.flow.board.topic.styles',
 		],
 	],
 
@@ -223,8 +221,6 @@ $wgFlowActions = [
 			'mediawiki.ui.button',
 			'mediawiki.ui.input',
 			'ext.flow.styles.base',
-			'ext.flow.board.styles',
-			'ext.flow.board.topic.styles',
 		],
 	],
 
@@ -310,7 +306,7 @@ $wgFlowActions = [
 		'rc_insert' => true,
 		'permissions' => [
 			// no permissions needed for own posts
-			PostRevision::MODERATED_NONE => function (
+			PostRevision::MODERATED_NONE => static function (
 				PostRevision $post, RevisionActionPermissions $permissions
 			) {
 				return $post->isCreator( $permissions->getUser() ) ? '' : 'flow-edit-post';
@@ -349,7 +345,7 @@ $wgFlowActions = [
 		'rc_insert' => true,
 		'permissions' => [
 			// no permissions needed for own posts
-			PostRevision::MODERATED_NONE => function (
+			PostRevision::MODERATED_NONE => static function (
 				PostRevision $post, RevisionActionPermissions $permissions
 			) {
 				return $post->isCreator( $permissions->getUser() ) ? '' : 'flow-edit-post';
@@ -382,8 +378,6 @@ $wgFlowActions = [
 			'mediawiki.ui.button',
 			'mediawiki.ui.input',
 			'ext.flow.styles.base',
-			'ext.flow.board.styles',
-			'ext.flow.board.topic.styles',
 		],
 	],
 
@@ -589,27 +583,25 @@ $wgFlowActions = [
 
 	'restore-post' => [
 		'performs-writes' => true,
-		'log_type' => function ( PostRevision $revision, ModerationLogger $logger ) {
+		'log_type' => static function ( PostRevision $revision, ModerationLogger $logger ) {
 			$post = $revision->getCollection();
 			$previousRevision = $post->getPrevRevision( $revision );
 			if ( $previousRevision ) {
 				// Kind of log depends on the previous change type:
 				// * if post was deleted, restore should go to deletion log
 				// * if post was suppressed, restore should go to suppression log
-				global $wgFlowActions;
-				return $wgFlowActions[$previousRevision->getModerationState() . '-post']['log_type'];
+				return $previousRevision->getModerationState();
 			}
 
 			return '';
 		},
-		'rc_insert' => function ( PostRevision $revision, RecentChangesListener $recentChanges ) {
+		'rc_insert' => static function ( PostRevision $revision, RecentChangesListener $recentChanges ) {
 			$post = $revision->getCollection();
 			$previousRevision = $post->getPrevRevision( $revision );
 			if ( $previousRevision ) {
 				// * if post was hidden/deleted, restore can go to RC
 				// * if post was suppressed, restore can not go to RC
-				global $wgFlowActions;
-				return $wgFlowActions[$previousRevision->getModerationState() . '-post']['rc_insert'];
+				return $previousRevision->getModerationState() !== 'suppress';
 			}
 
 			return true;
@@ -633,7 +625,7 @@ $wgFlowActions = [
 				'moderated-reason',
 				'topic-of-post-text-from-html',
 			],
-			'class' => function ( PostRevision $revision ) {
+			'class' => static function ( PostRevision $revision ) {
 				$previous = $revision->getCollection()->getPrevRevision( $revision );
 				$state = $previous->getModerationState();
 				return "flow-history-un$state-post";
@@ -645,27 +637,25 @@ $wgFlowActions = [
 
 	'restore-topic' => [
 		'performs-writes' => true,
-		'log_type' => function ( PostRevision $revision, ModerationLogger $logger ) {
+		'log_type' => static function ( PostRevision $revision, ModerationLogger $logger ) {
 			$post = $revision->getCollection();
 			$previousRevision = $post->getPrevRevision( $revision );
 			if ( $previousRevision ) {
 				// Kind of log depends on the previous change type:
 				// * if topic was deleted, restore should go to deletion log
 				// * if topic was suppressed, restore should go to suppression log
-				global $wgFlowActions;
-				return $wgFlowActions[$previousRevision->getModerationState() . '-topic']['log_type'];
+				return $previousRevision->getModerationState();
 			}
 
 			return '';
 		},
-		'rc_insert' => function ( PostRevision $revision, RecentChangesListener $recentChanges ) {
+		'rc_insert' => static function ( PostRevision $revision, RecentChangesListener $recentChanges ) {
 			$post = $revision->getCollection();
 			$previousRevision = $post->getPrevRevision( $revision );
 			if ( $previousRevision ) {
 				// * if topic was hidden/deleted, restore can go to RC
 				// * if topic was suppressed, restore can not go to RC
-				global $wgFlowActions;
-				return $wgFlowActions[$previousRevision->getModerationState() . '-topic']['rc_insert'];
+				return $previousRevision->getModerationState() !== 'suppress';
 			}
 
 			return true;
@@ -691,7 +681,7 @@ $wgFlowActions = [
 				'moderated-reason',
 				'topic-of-post-text-from-html',
 			],
-			'class' => function ( PostRevision $revision ) {
+			'class' => static function ( PostRevision $revision ) {
 				$previous = $revision->getCollection()->getPrevRevision( $revision );
 				$state = $previous->getModerationState();
 				return "flow-history-un$state-topic";
@@ -961,8 +951,7 @@ $wgFlowActions = [
 
 	/*
 	 * Backwards compatibility; these are old values that may have made their
-	 * way into the database. patch-rev_change_type_update.sql should take care
-	 * of these, but just to be sure ;)
+	 * way into the database.
 	 * Instead of having the correct config-array as value, you can just
 	 * reference another action.
 	 */
@@ -989,7 +978,6 @@ $wgFlowActions = [
 	'flow-create-header' => 'create-header',
 	/*
 	 * Backwards compatibility for previous suppression terminology (=censor).
-	 * patch-censor_to_suppress.sql should take care of all of these occurrences.
 	 */
 	'censor-post' => 'suppress-post',
 	'censor-topic' => 'suppress-topic',

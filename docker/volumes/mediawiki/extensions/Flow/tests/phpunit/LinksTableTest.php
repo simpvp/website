@@ -26,9 +26,7 @@ use Title;
  * @group Database
  */
 class LinksTableTest extends PostRevisionTestCase {
-	/**
-	 * @var array
-	 */
+	/** @inheritDoc */
 	protected $tablesUsed = [
 		'flow_ext_ref',
 		'flow_revision',
@@ -46,29 +44,29 @@ class LinksTableTest extends PostRevisionTestCase {
 	/**
 	 * @var ManagerGroup
 	 */
-	protected $storage;
+	private $storage;
 
 	/**
 	 * @var ReferenceRecorder
 	 */
-	protected $recorder;
+	private $recorder;
 
 	/**
 	 * @var LinksTableUpdater
 	 */
-	protected $updater;
+	private $updater;
 
 	/**
 	 * @var Workflow
 	 */
-	protected $workflow;
+	private $workflow;
 
 	/**
 	 * @var PostRevision
 	 */
-	protected $revision;
+	private $revision;
 
-	protected function setUp() : void {
+	protected function setUp(): void {
 		parent::setUp();
 
 		// create a workflow & revision associated with it

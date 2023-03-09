@@ -22,15 +22,13 @@ class RevisionCollectionPermissionsTest extends PostRevisionTestCase {
 	/**
 	 * @var FlowActions
 	 */
-	protected $actions;
+	private $actions;
 
 	/**
 	 * Map of action name to moderation status, as helper for
 	 * $this->generateRevision()
-	 *
-	 * @var array
 	 */
-	protected $moderation = [
+	private const MODERATION = [
 		'restore-post' => AbstractRevision::MODERATED_NONE,
 		'hide-post' => AbstractRevision::MODERATED_HIDDEN,
 		'delete-post' => AbstractRevision::MODERATED_DELETED,
@@ -40,39 +38,39 @@ class RevisionCollectionPermissionsTest extends PostRevisionTestCase {
 	/**
 	 * @var User
 	 */
-	protected $blockedUser;
+	private $blockedUser;
 
 	/**
 	 * @var User
 	 */
-	protected $anonUser;
+	private $anonUser;
 
 	/**
 	 * @var User
 	 */
-	protected $unconfirmedUser;
+	private $unconfirmedUser;
 
 	/**
 	 * @var User
 	 */
-	protected $confirmedUser;
+	private $confirmedUser;
 
 	/**
 	 * @var User
 	 */
-	protected $sysopUser;
+	private $sysopUser;
 
 	/**
 	 * @var User
 	 */
-	protected $suppressUser;
+	private $suppressUser;
 
 	/**
 	 * @var DatabaseBlock
 	 */
-	protected $block;
+	private $block;
 
-	protected function setUp() : void {
+	protected function setUp(): void {
 		parent::setUp();
 
 		$this->clearExtraLifecycleHandlers();
@@ -92,12 +90,12 @@ class RevisionCollectionPermissionsTest extends PostRevisionTestCase {
 		$blockedUser = $this->blockedUser();
 		$this->block = new DatabaseBlock( [
 			'address' => $blockedUser->getName(),
-			'by' => $this->getTestSysop()->getUser()->getId(),
+			'by' => $this->getTestSysop()->getUser(),
 			'user' => $blockedUser->getId()
 		] );
 		$this->block->insert();
 		// ensure that block made it into the database
-		wfGetDB( DB_MASTER )->commit( __METHOD__, 'flush' );
+		wfGetDB( DB_PRIMARY )->commit( __METHOD__, 'flush' );
 	}
 
 	/**
@@ -168,7 +166,7 @@ class RevisionCollectionPermissionsTest extends PostRevisionTestCase {
 	 */
 	public function testPermissions( $userGetterName, $permissionAction, array $actions ) {
 		// NOTE: the provider cannot create the User object, because it would be creating the
-		// user in the real database tables, not the fake tables provided by MediaWikiTestCase.
+		// user in the real database tables, not the fake tables provided by MediaWikiIntegrationTestCase.
 		/** @var User $user */
 		$user = $this->$userGetterName();
 
@@ -187,7 +185,7 @@ class RevisionCollectionPermissionsTest extends PostRevisionTestCase {
 		}
 
 		// commit pending db transaction
-		Container::get( 'db.factory' )->getDB( DB_MASTER )->commit( __METHOD__, 'flush' );
+		Container::get( 'db.factory' )->getDB( DB_PRIMARY )->commit( __METHOD__, 'flush' );
 
 		$debug = implode( ' ', $debug );
 		// secondly, iterate all revisions & see if expected permissions line up
@@ -227,7 +225,8 @@ class RevisionCollectionPermissionsTest extends PostRevisionTestCase {
 		if ( !$this->unconfirmedUser ) {
 			$this->unconfirmedUser = User::newFromName( 'UTFlowUnconfirmed' );
 			$this->unconfirmedUser->addToDatabase();
-			$this->unconfirmedUser->addGroup( 'user' );
+			$userGroupManager = $this->getServiceContainer()->getUserGroupManager();
+			$userGroupManager->addUserToGroup( $this->unconfirmedUser, 'user' );
 		}
 
 		return $this->unconfirmedUser;
@@ -237,7 +236,8 @@ class RevisionCollectionPermissionsTest extends PostRevisionTestCase {
 		if ( !$this->confirmedUser ) {
 			$this->confirmedUser = User::newFromName( 'UTFlowConfirmed' );
 			$this->confirmedUser->addToDatabase();
-			$this->confirmedUser->addGroup( 'autoconfirmed' );
+			$userGroupManager = $this->getServiceContainer()->getUserGroupManager();
+			$userGroupManager->addUserToGroup( $this->confirmedUser, 'autoconfirmed' );
 		}
 
 		return $this->confirmedUser;
@@ -247,7 +247,8 @@ class RevisionCollectionPermissionsTest extends PostRevisionTestCase {
 		if ( !$this->sysopUser ) {
 			$this->sysopUser = User::newFromName( 'UTFlowSysop' );
 			$this->sysopUser->addToDatabase();
-			$this->sysopUser->addGroup( 'sysop' );
+			$userGroupManager = $this->getServiceContainer()->getUserGroupManager();
+			$userGroupManager->addUserToGroup( $this->sysopUser, 'sysop' );
 		}
 
 		return $this->sysopUser;
@@ -257,7 +258,8 @@ class RevisionCollectionPermissionsTest extends PostRevisionTestCase {
 		if ( !$this->suppressUser ) {
 			$this->suppressUser = User::newFromName( 'UTFlowSuppress' );
 			$this->suppressUser->addToDatabase();
-			$this->suppressUser->addGroup( 'suppress' );
+			$userGroupManager = $this->getServiceContainer()->getUserGroupManager();
+			$userGroupManager->addUserToGroup( $this->suppressUser, 'suppress' );
 		}
 
 		return $this->suppressUser;
@@ -281,7 +283,7 @@ class RevisionCollectionPermissionsTest extends PostRevisionTestCase {
 		switch ( $action ) {
 			case 'restore-post':
 				$overrides += [
-					'rev_mod_state' => $this->moderation[$action], // AbstractRevision::MODERATED_NONE
+					'rev_mod_state' => self::MODERATION[$action], // AbstractRevision::MODERATED_NONE
 					'rev_mod_user_id' => null,
 					'rev_mod_user_ip' => null,
 					'rev_mod_timestamp' => null,
@@ -293,7 +295,7 @@ class RevisionCollectionPermissionsTest extends PostRevisionTestCase {
 			case 'delete-post':
 			case 'suppress-post':
 				$overrides += [
-					'rev_mod_state' => $this->moderation[$action], // AbstractRevision::MODERATED_(HIDDEN|DELETED|SUPPRESSED)
+					'rev_mod_state' => self::MODERATION[$action], // AbstractRevision::MODERATED_(HIDDEN|DELETED|SUPPRESSED)
 					'rev_mod_user_id' => 1,
 					'rev_mod_user_ip' => null,
 					'rev_mod_timestamp' => wfTimestampNow(),

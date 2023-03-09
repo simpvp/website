@@ -2,12 +2,12 @@
 	"@metadata": {
 		"authors": [
 			"Andrei Stroe",
+			"Andreyyshore",
 			"Minisarm",
+			"NGC 54",
 			"Nnemo",
 			"Strainu",
-			"Tuxilina",
-			"Andreyyshore",
-			"NGC 54"
+			"Tuxilina"
 		]
 	},
 	"enablestructureddiscussions": "Activează Discuții Structurate",
@@ -431,6 +431,7 @@
 	"flow-special-enableflow-confirmation": "Ai creat un afișier de discuții structurate la [[$1]].",
 	"flow-conversion-archive-page-name-format": "%s/Arhiva %d\n%s/Arhiva%d\n%s/arhiva %d\n%s/arhiva%d",
 	"flow-spam-confirmedit-form": "Vă rugăm să confirmați că sunteți un om rezolvând codul CAPTCHA de mai jos: $1",
+	"flow-spam-confirmedit-using-failure": "A apărut o eroare tehnică cu CAPTCHA. Dacă nu reușiți să vă trimiteți schimbarea, vă rugăm să vă copiați textul, să reîncărcați și să încercați din nou.",
 	"flow-post-undo-hide": "anulare ascundere",
 	"flow-post-undo-delete": "anulare ștergere",
 	"flow-post-undo-suppress": "anulare suprimare",

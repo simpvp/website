@@ -3,20 +3,20 @@
 		"authors": [
 			"Ahdan",
 			"Bennylin",
+			"Daud I.F. Argana",
 			"Diki Ananta",
 			"Farras",
 			"Irwangatot",
 			"IvanLanin",
 			"Kenrick95",
 			"Rex",
-			"Sumbukompor",
-			"Daud I.F. Argana"
+			"Sumbukompor"
 		]
 	},
 	"interwiki": "Lihat dan sunting data interwiki",
 	"interwiki-title-norights": "Lihat data interwiki",
 	"interwiki-desc": "Menambahkan sebuah [[Special:Interwiki|halaman istimewa]] untuk menampilkan dan menyunting tabel interwiki",
-	"interwiki_intro": "Ini adalah sebuah laporan mengenai tabel interwiki, yang mendefinisikan jalan pintas awalan untuk menautkan ke wiki lain dan situs luar. Untuk sara penggunaan, silakan lihat [https://www.mediawiki.org/wiki/Special:MyLanguage/Extension:Interwiki manualnya di MediaWiki.org].",
+	"interwiki_intro": "Ini adalah sebuah laporan mengenai tabel interwiki, yang mendefinisikan jalan pintas awalan untuk menautkan ke wiki lain dan situs luar. Untuk saran penggunaan, silakan lihat [https://www.mediawiki.org/wiki/Special:MyLanguage/Extension:Interwiki manualnya di MediaWiki.org].",
 	"interwiki-legend-label": "Keterangan",
 	"interwiki_prefix": "Prefiks",
 	"interwiki-prefix-label": "Prefiks:",

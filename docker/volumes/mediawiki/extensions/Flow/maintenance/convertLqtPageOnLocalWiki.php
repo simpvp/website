@@ -1,14 +1,22 @@
 <?php
 
+namespace Flow\Maintenance;
+
 use Flow\Container;
+use Flow\Hooks;
+use Flow\Import\Converter;
 use Flow\Import\LiquidThreadsApi\ConversionStrategy;
 use Flow\Import\LiquidThreadsApi\LocalApiBackend;
 use Flow\Import\SourceStore\FileImportSourceStore;
+use Maintenance;
 use Psr\Log\LogLevel;
 
-require_once getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php'
-	: __DIR__ . '/../../../maintenance/Maintenance.php';
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
 
 /**
  * This is intended for use both in testing and in production.  It converts a single LQT
@@ -25,7 +33,7 @@ class ConvertLqtPageOnLocalWiki extends Maintenance {
 	}
 
 	public function execute() {
-		$talkPageManagerUser = Flow\Hooks::getOccupationController()->getTalkpageManager();
+		$talkPageManagerUser = Hooks::getOccupationController()->getTalkpageManager();
 
 		$api = new LocalApiBackend( $talkPageManagerUser );
 
@@ -36,7 +44,7 @@ class ConvertLqtPageOnLocalWiki extends Maintenance {
 		$logFilename = $this->getOption( 'logfile' );
 		$sourceStore = new FileImportSourceStore( $logFilename );
 
-		$dbw = wfGetDB( DB_MASTER );
+		$dbw = wfGetDB( DB_PRIMARY );
 
 		$logger = new MaintenanceDebugLogger( $this );
 		if ( $this->getOption( 'debug' ) ) {
@@ -57,7 +65,7 @@ class ConvertLqtPageOnLocalWiki extends Maintenance {
 		$importer->setLogger( $logger );
 		$api->setLogger( $logger );
 
-		$converter = new \Flow\Import\Converter(
+		$converter = new Converter(
 			$dbw,
 			$importer,
 			$logger,

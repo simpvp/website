@@ -1,9 +1,16 @@
 {
 	"@metadata": {
 		"authors": [
-			"Patriot Kur"
+			"Patriot Kur",
+			"Patriot Kor"
 		]
 	},
+	"nstab-topic": "Mıvzo",
 	"flow-cancel": "Ləğv karde",
-	"flow-history-day": "Imrüj"
+	"flow-newtopic-header": "Nuyə mıvzo əlovə bıkə",
+	"flow-newtopic-save": "Mıvzo əlovə bıkə",
+	"flow-post-action-hide-post": "Niyon bıkə",
+	"flow-history-day": "Imruj",
+	"flow-link-topic": "mıvzo",
+	"flow-moderation-confirm-hide-topic": "Niyon bıkə"
 }

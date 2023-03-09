@@ -1,16 +1,32 @@
 <?php
 
+namespace Flow\Maintenance;
+
+use BatchRowIterator;
+use BatchRowUpdate;
+use BatchRowWriter;
+use Exception;
 use Flow\Container;
 use Flow\Model\UUID;
 use Flow\Model\Workflow;
 use Flow\OccupationController;
+use Language;
+use LoggedUpdateMaintenance;
+use MediaWiki\MediaWikiServices;
+use RawMessage;
+use RowUpdateGenerator;
+use Status;
+use stdClass;
+use StubUserLang;
+use Title;
+use WikiMap;
 
 $IP = getenv( 'MW_INSTALL_PATH' );
 if ( $IP === false ) {
 	$IP = __DIR__ . '/../../..';
 }
+
 require_once "$IP/maintenance/Maintenance.php";
-require_once "$IP/includes/utils/RowUpdateGenerator.php";
 
 /**
  * In some cases we have created workflow instances before the related Title
@@ -34,21 +50,23 @@ class FlowUpdateWorkflowPageId extends LoggedUpdateMaintenance {
 	public function doDbUpdates() {
 		global $wgFlowCluster, $wgLang;
 
-		$dbw = Container::get( 'db.factory' )->getDB( DB_MASTER );
+		$dbw = Container::get( 'db.factory' )->getDB( DB_PRIMARY );
 
 		$it = new BatchRowIterator(
 			$dbw,
 			'flow_workflow',
 			'workflow_id',
-			$this->mBatchSize
+			$this->getBatchSize()
 		);
 		$it->setFetchColumns( [ '*' ] );
 		$it->addConditions( [
-			'workflow_wiki' => wfWikiID(),
+			'workflow_wiki' => WikiMap::getCurrentWikiId(),
 		] );
+		$it->setCaller( __METHOD__ );
 
 		$gen = new WorkflowPageIdUpdateGenerator( $wgLang );
 		$writer = new BatchRowWriter( $dbw, 'flow_workflow', $wgFlowCluster );
+		$writer->setCaller( __METHOD__ );
 		$updater = new BatchRowUpdate( $it, $writer, $gen );
 
 		$updater->execute();
@@ -59,7 +77,7 @@ class FlowUpdateWorkflowPageId extends LoggedUpdateMaintenance {
 	}
 
 	protected function getUpdateKey() {
-		return __CLASS__;
+		return 'FlowUpdateWorkflowPageId';
 	}
 }
 
@@ -72,8 +90,11 @@ class WorkflowPageIdUpdateGenerator implements RowUpdateGenerator {
 	 * @var Language|StubUserLang
 	 */
 	protected $lang;
+	/** @var int */
 	protected $fixedCount = 0;
+	/** @var stdClass[] */
 	protected $failures = [];
+	/** @var string[] */
 	protected $warnings = [];
 
 	/**
@@ -135,12 +156,12 @@ class WorkflowPageIdUpdateGenerator implements RowUpdateGenerator {
 		try {
 			$status = $occupationController->safeAllowCreation( $title, $occupationController->getTalkpageManager() );
 			$status2 = $occupationController->ensureFlowRevision(
-				WikiPage::factory( $title ),
+				MediaWikiServices::getInstance()->getWikiPageFactory()->newFromTitle( $title ),
 				$workflow
 			);
 
 			$status->merge( $status2 );
-		} catch ( \Exception $e ) {
+		} catch ( Exception $e ) {
 			// "convert" exception into Status
 			$message = new RawMessage( $e->getMessage() );
 			$status = Status::newFatal( $message );
@@ -155,9 +176,20 @@ class WorkflowPageIdUpdateGenerator implements RowUpdateGenerator {
 	}
 
 	public function report() {
-		return "Updated {$this->fixedCount}  workflows\n\n" .
-			"Warnings: " . count( $this->warnings ) . "\n" . print_r( $this->warnings, true ) . "\n\n" .
-			"Failed: " . count( $this->failures ) . "\n" . print_r( $this->failures, true );
+		$ret = "Updated {$this->fixedCount} workflows\n\n";
+
+		$warningsCount = count( $this->warnings );
+		$ret .= "Warnings: {$warningsCount}\n";
+		if ( $warningsCount > 0 ) {
+			$ret .= print_r( $this->warnings, true ) . "\n\n";
+		}
+		$failureCount = count( $this->failures );
+		$ret .= "Failed: {$failureCount}\n";
+		if ( $failureCount > 0 ) {
+			$ret .= print_r( $this->failures, true );
+		}
+
+		return $ret;
 	}
 }
 

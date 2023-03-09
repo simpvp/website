@@ -13,8 +13,8 @@ use Flow\Model\Workflow;
 use FormatJson;
 use IContextSource;
 use MediaWiki\Logger\LoggerFactory;
+use MediaWiki\MediaWikiServices;
 use SplQueue;
-use WikiPage;
 
 class SubmissionHandler {
 
@@ -60,8 +60,8 @@ class SubmissionHandler {
 		$action,
 		array $parameters
 	) {
-		// since this is a submit force dbFactory to always return master
-		$this->dbFactory->forceMaster();
+		// since this is a submit force dbFactory to always return primary
+		$this->dbFactory->forcePrimary();
 
 		/** @var Block[] $interestedBlocks */
 		$interestedBlocks = [];
@@ -91,7 +91,7 @@ class SubmissionHandler {
 		// status, etc.
 		$errors = $workflow->getPermissionErrors( 'edit', $context->getUser(), 'secure' );
 		if ( count( $errors ) ) {
-			LoggerFactory::getInstance( 'Flow' )->error( 'Got permission errors for user {user} attempting action "{action}".',
+			LoggerFactory::getInstance( 'Flow' )->debug( 'Got permission errors for user {user} attempting action "{action}".',
 				[
 					'action' => $action,
 					'user' => $context->getUser()->getName(),
@@ -118,7 +118,7 @@ class SubmissionHandler {
 		foreach ( $interestedBlocks as $block ) {
 			$name = $block->getName();
 			$data = $parameters[$name] ?? [];
-			$success &= $block->onSubmit( $data );
+			$success = $block->onSubmit( $data ) && $success;
 		}
 
 		return $success ? $interestedBlocks : [];
@@ -133,7 +133,7 @@ class SubmissionHandler {
 	 * @throws \Exception
 	 */
 	public function commit( Workflow $workflow, array $blocks ) {
-		$dbw = $this->dbFactory->getDB( DB_MASTER );
+		$dbw = $this->dbFactory->getDB( DB_PRIMARY );
 
 		/** @var OccupationController $occupationController */
 		$occupationController = Container::get( 'occupation_controller' );
@@ -155,7 +155,7 @@ class SubmissionHandler {
 			$dbw->startAtomic( __METHOD__ );
 			// Create the occupation page/revision if needed
 			$occupationController->ensureFlowRevision(
-				WikiPage::factory( $title ),
+				MediaWikiServices::getInstance()->getWikiPageFactory()->newFromTitle( $title ),
 				$workflow
 			);
 			// Create/modify each Flow block as requested
@@ -164,20 +164,17 @@ class SubmissionHandler {
 				$results[$block->getName()] = $block->commit();
 			}
 			$dbw->endAtomic( __METHOD__ );
-		} catch ( \Exception $e ) {
+
+			while ( !$this->deferredQueue->isEmpty() ) {
+				DeferredUpdates::addCallableUpdate( $this->deferredQueue->dequeue() );
+			}
+			$workflow->getArticleTitle()->purgeSquid();
+
+		return $results;
+		} finally {
 			while ( !$this->deferredQueue->isEmpty() ) {
 				$this->deferredQueue->dequeue();
 			}
-			$this->dbFactory->rollbackMasterChanges( __METHOD__ );
-			throw $e;
 		}
-
-		while ( !$this->deferredQueue->isEmpty() ) {
-			DeferredUpdates::addCallableUpdate( $this->deferredQueue->dequeue() );
-		}
-
-		$workflow->getArticleTitle()->purgeSquid();
-
-		return $results;
 	}
 }

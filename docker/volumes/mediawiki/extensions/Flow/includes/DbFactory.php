@@ -5,7 +5,7 @@ namespace Flow;
 use MediaWiki\MediaWikiServices;
 use Wikimedia\Rdbms\DBReplicationWaitError;
 use Wikimedia\Rdbms\IDatabase;
-use Wikimedia\Rdbms\IMaintainableDatabase;
+use Wikimedia\Rdbms\ILoadBalancer;
 
 /**
  * All classes within Flow that need to access the Flow db will go through
@@ -31,9 +31,9 @@ class DbFactory {
 	protected $cluster;
 
 	/**
-	 * @var bool When true only DB_MASTER will be returned
+	 * @var bool When true only DB_PRIMARY will be returned
 	 */
-	protected $forceMaster = false;
+	protected $forcePrimary = false;
 
 	/**
 	 * @param string|bool $wiki Wiki ID, or false for the current wiki
@@ -44,18 +44,18 @@ class DbFactory {
 		$this->cluster = $cluster;
 	}
 
-	public function forceMaster() {
-		$this->forceMaster = true;
+	public function forcePrimary() {
+		$this->forcePrimary = true;
 	}
 
 	/**
 	 * Gets a database connection for the Flow-specific database.
 	 *
-	 * @param int $db index of the connection to get.  DB_MASTER|DB_REPLICA.
-	 * @return IMaintainableDatabase
+	 * @param int $db index of the connection to get.  DB_PRIMARY|DB_REPLICA.
+	 * @return IDatabase
 	 */
 	public function getDB( $db ) {
-		return $this->getLB()->getConnection( $this->forceMaster ? DB_MASTER : $db, [], $this->wiki );
+		return $this->getLB()->getConnection( $this->forcePrimary ? DB_PRIMARY : $db, [], $this->wiki );
 	}
 
 	/**
@@ -75,20 +75,20 @@ class DbFactory {
 	/**
 	 * Gets a database connection for the main wiki database.  Mockable version of wfGetDB.
 	 *
-	 * @param int $db index of the connection to get.  DB_MASTER|DB_REPLICA.
+	 * @param int $db index of the connection to get.  DB_PRIMARY|DB_REPLICA.
 	 * @param string|bool $wiki The wiki ID, or false for the current wiki
 	 * @return IDatabase
 	 */
 	public function getWikiDB( $db, $wiki = false ) {
 		$lbFactory = MediaWikiServices::getInstance()->getDBLoadBalancerFactory();
-		return $lbFactory->getMainLB( $wiki )->getConnection( $this->forceMaster ? DB_MASTER : $db, [], $wiki );
+		return $lbFactory->getMainLB( $wiki )->getConnection( $this->forcePrimary ? DB_PRIMARY : $db, [], $wiki );
 	}
 
 	/**
 	 * Gets a load balancer for the main wiki database.
 	 *
 	 * @param string|bool $wiki wiki ID, or false for the current wiki
-	 * @return \Wikimedia\Rdbms\LoadBalancer
+	 * @return ILoadBalancer
 	 */
 	public function getWikiLB( $wiki = false ) {
 		$lbFactory = MediaWikiServices::getInstance()->getDBLoadBalancerFactory();
@@ -112,11 +112,11 @@ class DbFactory {
 
 	/**
 	 * Roll back changes on all databases.
-	 * @see LBFactory::rollbackMasterChanges
+	 * @see LBFactory::rollbackPrimaryChanges
 	 * @param string $fname
 	 */
-	public function rollbackMasterChanges( $fname = __METHOD__ ) {
+	public function rollbackPrimaryChanges( $fname = __METHOD__ ) {
 		$lbFactory = MediaWikiServices::getInstance()->getDBLoadBalancerFactory();
-		$lbFactory->rollbackMasterChanges( $fname );
+		$lbFactory->rollbackPrimaryChanges( $fname );
 	}
 }

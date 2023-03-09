@@ -3,8 +3,7 @@
 class EchoWatchlistChangePresentationModel extends EchoEventPresentationModel {
 
 	public function getIconType() {
-		// @todo create an icon to use here
-		return 'placeholder';
+		return 'watchlist-progressive';
 	}
 
 	public function getHeaderMessage() {
@@ -28,7 +27,7 @@ class EchoWatchlistChangePresentationModel extends EchoEventPresentationModel {
 			// notification-header-watchlist-restored
 			$msg = $this->getMessageWithAgent( "notification-header-watchlist-" . $status );
 		}
-		$msg->params( $this->getTruncatedTitleText( $this->event->getTitle() ) );
+		$msg->params( $this->getTruncatedTitleText( $this->event->getTitle(), true ) );
 		$msg->params( $this->getViewingUserForGender() );
 		$msg->numParams( $this->getBundleCount() );
 		return $msg;
@@ -66,6 +65,13 @@ class EchoWatchlistChangePresentationModel extends EchoEventPresentationModel {
 			];
 			return [ $this->getAgentLink(), $viewChangesLink ];
 		}
+	}
+
+	public function getBodyMessage() {
+		if ( $this->event->getExtraParam( 'emailonce' ) && $this->getDistributionType() == 'email' ) {
+			return $this->msg( 'notification-body-watchlist-once', $this->getViewingUserForGender() );
+		}
+		return false;
 	}
 
 	private function isMultiUserBundle() {

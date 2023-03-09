@@ -18,7 +18,7 @@
 
 		// Parent constructor
 		mw.flow.ve.Target.super.call( this, ve.extendObject( {
-			toolbarConfig: { actions: true, $overlay: true, position: 'bottom' }
+			toolbarConfig: { $overlay: true, position: 'bottom' }
 		}, config ) );
 
 		this.id = config.id;
@@ -35,6 +35,10 @@
 
 	/**
 	 * @event submit
+	 */
+
+	/**
+	 * @event cancel
 	 */
 
 	// Static
@@ -62,6 +66,14 @@
 		{
 			name: 'flowMention',
 			include: [ 'flowMention' ]
+		},
+		{
+			name: 'editMode',
+			align: 'after',
+			type: 'list',
+			icon: 'edit',
+			title: mw.msg( 'visualeditor-mweditmode-tooltip' ),
+			include: [ 'editModeVisual', 'editModeSource' ]
 		}
 	];
 
@@ -69,19 +81,15 @@
 	mw.flow.ve.Target.static.importRules = ve.copy( mw.flow.ve.Target.static.importRules );
 	mw.flow.ve.Target.static.importRules.external.blacklist[ 'link/mwExternal' ] = false;
 
-	mw.flow.ve.Target.static.actionGroups = [ {
-		name: 'editMode',
-		type: 'list',
-		icon: 'edit',
-		title: mw.msg( 'visualeditor-mweditmode-tooltip' ),
-		include: [ 'editModeVisual', 'editModeSource' ]
-	} ];
-
 	// Methods
 
 	mw.flow.ve.Target.prototype.addSurface = function ( dmDoc, config ) {
-		// eslint-disable-next-line no-jquery/no-global-selector
-		config = ve.extendObject( { $overlayContainer: $( '#content' ) }, config );
+		config = ve.extendObject( {
+			// eslint-disable-next-line no-jquery/no-global-selector
+			$overlayContainer: $( '#content' ),
+			// Disable to allow Tab/Shift+Tab to move focus out of the widget (T172694)
+			excludeCommands: [ 'indent', 'outdent' ]
+		}, config );
 		// Parent method
 		return mw.flow.ve.Target.super.prototype.addSurface.call( this, dmDoc, config );
 	};
@@ -142,7 +150,7 @@
 		newFormat = newMode === 'visual' ? 'html' : 'wikitext';
 		doc = this.getSurface().getDom();
 		// When coming from visual mode, getDom() returns an HTMLDocument, otherwise a string
-		content = oldFormat === 'html' ? this.getHtml( doc ) : doc;
+		content = oldFormat === 'html' ? mw.libs.ve.targetSaver.getHtml( doc ) : doc;
 
 		this.setDefaultMode( newMode );
 		this.switchingDeferred = $.Deferred();
@@ -158,6 +166,9 @@
 		var deferred,
 			surfaceModel = this.getSurface().getModel();
 
+		// ime-position-inside needs to be added before first focus
+		this.getSurface().getView().getDocument().getDocumentNode().$element.addClass( 'ime-position-inside' );
+
 		if ( this.switchingDeferred ) {
 			deferred = this.switchingDeferred;
 			this.switchingDeferred = null;
@@ -170,8 +181,11 @@
 		// Parent method
 		mw.flow.ve.Target.super.prototype.surfaceReady.apply( this, arguments );
 
-		// Re-emit main surface 'submit' as target 'submit'
-		this.getSurface().on( 'submit', this.emit.bind( this, 'submit' ) );
+		// Re-emit main surface 'cancel' and 'submit' events
+		this.getSurface().connect( this, {
+			cancel: [ 'emit', 'cancel' ],
+			submit: [ 'emit', 'submit' ]
+		} );
 	};
 
 	/**

@@ -1,15 +1,27 @@
 <?php
 
+namespace Flow\Maintenance;
+
+use ActorMigration;
 use Flow\Container;
 use Flow\DbFactory;
+use Flow\Hooks;
 use Flow\Import\ArchiveNameHelper;
+use Maintenance;
 use MediaWiki\MediaWikiServices;
+use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\SlotRecord;
-use MediaWiki\Storage\RevisionRecord;
+use MWException;
+use Status;
+use Title;
+use User;
 
-require_once getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php'
-	: __DIR__ . '/../../../maintenance/Maintenance.php';
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
 
 class FlowRestoreLQT extends Maintenance {
 	/**
@@ -48,7 +60,7 @@ class FlowRestoreLQT extends Maintenance {
 	}
 
 	public function execute() {
-		$this->talkpageManagerUser = Flow\Hooks::getOccupationController()->getTalkpageManager();
+		$this->talkpageManagerUser = Hooks::getOccupationController()->getTalkpageManager();
 		$this->dbFactory = Container::get( 'db.factory' );
 		$this->dryRun = $this->getOption( 'dryrun', false );
 		$this->overwrite = $this->getOption( 'overwrite-flow', false );
@@ -70,67 +82,65 @@ class FlowRestoreLQT extends Maintenance {
 	 */
 	protected function restoreLQTBoards() {
 		$dbr = $this->dbFactory->getWikiDB( DB_REPLICA );
+		$batchSize = $this->getBatchSize();
 
 		$revWhere = ActorMigration::newMigration()
 			->getWhere( $dbr, 'rev_user', $this->talkpageManagerUser );
-		$logWhere = ActorMigration::newMigration()
-			->getWhere( $dbr, 'log_user', $this->talkpageManagerUser );
 
 		$lbFactory = MediaWikiServices::getInstance()->getDBLoadBalancerFactory();
 
 		foreach ( $revWhere['orconds'] as $revCond ) {
-			foreach ( $logWhere['orconds'] as $logCond ) {
-				$startId = 0;
-				do {
-					// fetch all LQT boards that have been moved out of the way,
-					// with their original title & their current title
-					$rows = $dbr->select(
-						[ 'logging', 'page', 'revision' ] + $revWhere['tables'] + $logWhere['tables'],
-						// log_namespace & log_title will be the original location
-						// page_namespace & page_title will be the current location
-						// rev_id is the first Flow talk page manager edit id
-						// log_id is the log entry for when importer moved LQT page
-						[ 'log_namespace', 'log_title', 'page_id', 'page_namespace', 'page_title',
-							'rev_id' => 'MIN(rev_id)', 'log_id' ],
-						[
-							$logCond,
-							'log_type' => 'move',
-							'page_content_model' => 'wikitext',
-							'page_id > ' . $dbr->addQuotes( $startId ),
+			$startId = 0;
+			do {
+				// fetch all LQT boards that have been moved out of the way,
+				// with their original title & their current title
+				$rows = $dbr->select(
+					[ 'logging', 'page', 'revision' ] + $revWhere['tables'],
+					// log_namespace & log_title will be the original location
+					// page_namespace & page_title will be the current location
+					// rev_id is the first Flow talk page manager edit id
+					// log_id is the log entry for when importer moved LQT page
+					[ 'log_namespace', 'log_title', 'page_id', 'page_namespace', 'page_title',
+						'rev_id' => 'MIN(rev_id)', 'log_id' ],
+					[
+						'log_actor' => $this->talkpageManagerUser->getActorId(),
+						'log_type' => 'move',
+						'page_content_model' => 'wikitext',
+						'page_id > ' . $dbr->addQuotes( $startId ),
+						$revCond,
+					],
+					__METHOD__,
+					[
+						'GROUP BY' => 'rev_page',
+						'LIMIT' => $batchSize,
+						'ORDER BY' => 'log_id ASC',
+					],
+					[
+						'page' => [
+							'INNER JOIN',
+							[ 'page_id = log_page' ],
 						],
-						__METHOD__,
-						[
-							'GROUP BY' => 'rev_page',
-							'LIMIT' => $this->mBatchSize,
-							'ORDER BY' => 'log_id ASC',
+						'revision' => [
+							'INNER JOIN',
+							[ 'rev_page = log_page' ],
 						],
-						[
-							'page' => [
-								'INNER JOIN',
-								[ 'page_id = log_page' ],
-							],
-							'revision' => [
-								'INNER JOIN',
-								[ 'rev_page = log_page', $revCond ],
-							],
-						] + $revWhere['joins'] + $logWhere['joins']
-					);
+					] + $revWhere['joins']
+				);
 
-					foreach ( $rows as $row ) {
-						$from = Title::newFromText( $row->page_title, $row->page_namespace );
-						$to = Title::newFromText( $row->log_title, $row->log_namespace );
+				foreach ( $rows as $row ) {
+					$from = Title::newFromText( $row->page_title, $row->page_namespace );
+					$to = Title::newFromText( $row->log_title, $row->log_namespace );
 
-						// undo {{#useliquidthreads:0}}
-						$this->restorePageRevision( $row->page_id, $row->rev_id );
-						// undo page move to archive location
-						$this->restoreLQTPage( $from, $to, $row->log_id );
+					// undo {{#useliquidthreads:0}}
+					$this->restorePageRevision( $row->page_id, $row->rev_id );
+					// undo page move to archive location
+					$this->restoreLQTPage( $from, $to, $row->log_id );
 
-						$startId = $row->page_id;
-					}
+					$startId = $row->page_id;
+				}
 
-					$lbFactory->waitForReplication();
-				} while ( $rows->numRows() >= $this->mBatchSize );
-			}
+				$lbFactory->waitForReplication();
+			} while ( $rows->numRows() >= $batchSize );
 		}
 	}
 
@@ -141,6 +151,7 @@ class FlowRestoreLQT extends Maintenance {
 	 */
 	protected function restoreLQTThreads() {
 		$dbr = $this->dbFactory->getWikiDB( DB_REPLICA );
+		$batchSize = $this->getBatchSize();
 
 		$revWhere = ActorMigration::newMigration()
 			->getWhere( $dbr, 'rev_user', $this->talkpageManagerUser );
@@ -163,7 +174,7 @@ class FlowRestoreLQT extends Maintenance {
 					__METHOD__,
 					[
 						'GROUP BY' => 'page_id',
-						'LIMIT' => $this->mBatchSize,
+						'LIMIT' => $batchSize,
 						'ORDER BY' => 'page_id ASC',
 					],
 					[
@@ -181,7 +192,7 @@ class FlowRestoreLQT extends Maintenance {
 				}
 
 				$lbFactory->waitForReplication();
-			} while ( $rows->numRows() >= $this->mBatchSize );
+			} while ( $rows->numRows() >= $batchSize );
 		}
 	}
 
@@ -256,7 +267,7 @@ class FlowRestoreLQT extends Maintenance {
 					"'{$lqt->getPrefixedDBkey()}' there.\n" );
 
 				if ( !$this->dryRun ) {
-					$page = WikiPage::factory( $flow );
+					$page = MediaWikiServices::getInstance()->getWikiPageFactory()->newFromTitle( $flow );
 					$page->doDeleteArticleReal(
 						'/* Make place to restore LQT board */',
 						$this->talkpageManagerUser,
@@ -284,7 +295,9 @@ class FlowRestoreLQT extends Maintenance {
 	protected function movePage( Title $from, Title $to, $reason ) {
 		$this->output( "	Moving '{$from->getPrefixedDBkey()}' to '{$to->getPrefixedDBkey()}'.\n" );
 
-		$movePage = new MovePage( $from, $to );
+		$movePage = MediaWikiServices::getInstance()
+			->getMovePageFactory()
+			->newMovePage( $from, $to );
 		$status = $movePage->isValidMove();
 		if ( !$status->isGood() ) {
 			return $status;
@@ -306,17 +319,19 @@ class FlowRestoreLQT extends Maintenance {
 	protected function restorePageRevision( $pageId, $nextRevisionId ) {
 		global $wgLang;
 
-		$page = WikiPage::newFromID( $pageId );
+		$page = MediaWikiServices::getInstance()->getWikiPageFactory()->newFromID( $pageId );
 		$revisionLookup = MediaWikiServices::getInstance()->getRevisionLookup();
 		$nextRevision = $revisionLookup->getRevisionById( $nextRevisionId );
 		$revision = $revisionLookup->getPreviousRevision( $nextRevision );
+		$mainContent = $revision->getContent( SlotRecord::MAIN, RevisionRecord::RAW );
+		'@phan-var \Content $mainContent';
 
-		if ( $page->getContent()->equals( $revision->getContent( SlotRecord::MAIN ) ) ) {
+		if ( $page->getContent()->equals( $mainContent ) ) {
 			// has correct content already (probably a rerun of this script)
 			return Status::newGood();
 		}
 
-		$content = $revision->getContent( SlotRecord::MAIN )->serialize();
+		$content = $mainContent->serialize();
 		$content = $wgLang->truncateForVisual( $content, 150 );
 		$content = str_replace( "\n", '\n', $content );
 		$this->output( "Restoring revision {$revision->getId()} for LQT page {$pageId}: {$content}\n" );
@@ -324,12 +339,12 @@ class FlowRestoreLQT extends Maintenance {
 		if ( $this->dryRun ) {
 			return Status::newGood();
 		} else {
-			return $page->doEditContent(
-				$revision->getContent( SlotRecord::MAIN, RevisionRecord::RAW ),
+			return $page->doUserEditContent(
+				$mainContent,
+				$this->talkpageManagerUser,
 				'/* Restore LQT topic content */',
 				EDIT_UPDATE | EDIT_MINOR | EDIT_FORCE_BOT,
-				$revision->getId(),
-				$this->talkpageManagerUser
+				$revision->getId()
 			);
 		}
 	}

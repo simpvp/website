@@ -1,12 +1,6 @@
-/*!
- * Grunt file
- *
- * @package CheckUser
- */
-
-/* eslint-env node */
+'use strict';
 module.exports = function ( grunt ) {
-	var conf = grunt.file.readJSON( 'extension.json' );
+	const conf = grunt.file.readJSON( 'extension.json' );
 	grunt.loadNpmTasks( 'grunt-eslint' );
 	grunt.loadNpmTasks( 'grunt-banana-checker' );
 	grunt.loadNpmTasks( 'grunt-stylelint' );
@@ -16,19 +10,17 @@ module.exports = function ( grunt ) {
 			options: {
 				cache: true
 			},
-			all: [
-				'*.{js,json}',
-				'modules/**/*.{js,json}'
-			]
+			all: '.'
 		},
 		stylelint: {
 			all: [
-				'modules/**/*.{css,less}'
+				'**/*.{css,less}',
+				'!vendor/**',
+				'!node_modules/**'
 			]
 		},
 		banana: conf.MessagesDirs
 	} );
 
 	grunt.registerTask( 'test', [ 'eslint', 'banana', 'stylelint' ] );
-	grunt.registerTask( 'default', 'test' );
 };

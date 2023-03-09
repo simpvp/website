@@ -1,18 +1,25 @@
 <?php
 
+namespace Flow\Maintenance;
+
+use BackupDumper;
 use Flow\Container;
 use Flow\Dump\Exporter;
+use MediaWiki\MediaWikiServices;
+use WikiExporter;
 
-$maintPath = ( getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance'
-	: __DIR__ . '/../../../maintenance' );
-require_once $maintPath . '/Maintenance.php';
-require_once $maintPath . '/includes/BackupDumper.php';
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
+require_once "$IP/maintenance/includes/BackupDumper.php";
 
 class FlowDumpBackup extends BackupDumper {
-	/** @var int|null */
+	/** @var string|null */
 	public $workflowStartId = null;
-	/** @var int|null */
+	/** @var string|null */
 	public $workflowEndId = null;
 
 	public function __construct( $args = null ) {
@@ -52,12 +59,6 @@ TEXT
 	}
 
 	public function execute() {
-		// Stop if Flow not enabled on the wiki
-		if ( !class_exists( Flow\Hooks::class ) ) {
-			echo "Flow isn't enabled on this wiki.\n";
-			die( 1 );
-		}
-
 		$this->processOptions();
 
 		if ( $this->hasOption( 'full' ) ) {
@@ -65,7 +66,7 @@ TEXT
 		} elseif ( $this->hasOption( 'current' ) ) {
 			$this->dump( WikiExporter::CURRENT );
 		} else {
-			$this->error( 'No valid action specified.', 1 );
+			$this->fatalError( 'No valid action specified.' );
 		}
 	}
 
@@ -81,7 +82,16 @@ TEXT
 		}
 
 		$db = Container::get( 'db.factory' )->getDB( DB_REPLICA );
-		$exporter = new Exporter( $db, $history, Exporter::TEXT );
+
+		$services = MediaWikiServices::getInstance();
+		$exporter = new Exporter(
+			$db,
+			$services->getHookContainer(),
+			$services->getRevisionStore(),
+			$services->getTitleParser(),
+			$history,
+			WikiExporter::TEXT
+		);
 		$exporter->setOutputSink( $this->sink );
 
 		if ( !$this->skipHeader ) {
@@ -115,7 +125,7 @@ TEXT
 			$pages = array_map( 'trim', $pages );
 			$this->pages = array_filter(
 				$pages,
-				function ( $x ) {
+				static function ( $x ) {
 					return $x !== '';
 				}
 			);
@@ -130,11 +140,11 @@ TEXT
 		}
 
 		if ( $this->hasOption( 'boardstart' ) ) {
-			$this->workflowStartId = (int)$this->getOption( 'boardstart' );
+			$this->workflowStartId = $this->getOption( 'boardstart' );
 		}
 
 		if ( $this->hasOption( 'boardend' ) ) {
-			$this->workflowEndId = (int)$this->getOption( 'boardend' );
+			$this->workflowEndId = $this->getOption( 'boardend' );
 		}
 
 		$this->skipHeader = $this->hasOption( 'skip-header' );

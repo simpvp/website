@@ -48,10 +48,11 @@ class NamespaceIterator implements IteratorAggregate {
 			'page_namespace' => $this->namespace,
 		] );
 		$it->setFetchColumns( [ 'page_title' ] );
+		$it->setCaller( __METHOD__ );
 		$it = new RecursiveIteratorIterator( $it );
 
 		$namespace = $this->namespace;
-		return new EchoCallbackIterator( $it, function ( $row ) use ( $namespace ) {
+		return new EchoCallbackIterator( $it, static function ( $row ) use ( $namespace ) {
 			return Title::makeTitle( $namespace, $row->page_title );
 		} );
 	}

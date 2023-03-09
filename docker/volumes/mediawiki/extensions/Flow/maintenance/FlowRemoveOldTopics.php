@@ -1,19 +1,29 @@
 <?php
 
+namespace Flow\Maintenance;
+
 use Flow\Container;
 use Flow\Data\ManagerGroup;
 use Flow\Data\Utils\RawSql;
 use Flow\DbFactory;
+use Flow\Exception\FlowException;
+use Flow\Hooks;
 use Flow\Model\AbstractRevision;
 use Flow\Model\Header;
 use Flow\Model\PostRevision;
 use Flow\Model\UUID;
 use Flow\Model\Workflow;
 use Flow\Repository\TreeRepository;
+use Maintenance;
+use WikiMap;
+use Wikimedia\Rdbms\DBUnexpectedError;
 
-require_once getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php'
-	: __DIR__ . '/../../../maintenance/Maintenance.php';
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
 
 /**
  * @ingroup Maintenance
@@ -71,6 +81,7 @@ class FlowRemoveOldTopics extends Maintenance {
 
 	protected function removeHeader( $timestamp ) {
 		$dbr = $this->dbFactory->getDB( DB_REPLICA );
+		$batchSize = $this->getBatchSize();
 
 		// we don't store a timestamp with revisions - the id also holds date
 		// info, so that's what we should compare against
@@ -83,7 +94,7 @@ class FlowRemoveOldTopics extends Maintenance {
 			$revisions = $this->storage->find(
 				'Header',
 				[
-					'rev_user_wiki' => wfWikiID(),
+					'rev_user_wiki' => WikiMap::getCurrentWikiId(),
 					'rev_type' => 'header',
 					new RawSql( 'rev_id > ' . $dbr->addQuotes( $startId->getBinary() ) ),
 					new RawSql( 'rev_id < ' . $dbr->addQuotes( $endId->getBinary() ) ),
@@ -92,7 +103,7 @@ class FlowRemoveOldTopics extends Maintenance {
 					'rev_parent_id' => null,
 				],
 				[
-					'limit' => $this->mBatchSize,
+					'limit' => $batchSize,
 					'sort' => 'rev_id',
 					'order' => 'ASC',
 				]
@@ -117,7 +128,7 @@ class FlowRemoveOldTopics extends Maintenance {
 				$uuids[$revision->getCollectionId()->getAlphadecimal()] = $revision->getCollectionId();
 
 				$conds[] = [
-					'rev_user_wiki' => wfWikiID(),
+					'rev_user_wiki' => WikiMap::getCurrentWikiId(),
 					'rev_type' => 'header',
 					new RawSql( 'rev_id >= ' . $dbr->addQuotes( $endId->getBinary() ) ),
 					'rev_type_id' => $revision->getCollectionId()->getBinary(),
@@ -144,7 +155,7 @@ class FlowRemoveOldTopics extends Maintenance {
 			$revisions = $this->storage->find(
 				'Header',
 				[
-					'rev_user_wiki' => wfWikiID(),
+					'rev_user_wiki' => WikiMap::getCurrentWikiId(),
 					'rev_type' => 'header',
 					'rev_type_id' => UUID::convertUUIDs( $uuids ),
 				]
@@ -153,7 +164,7 @@ class FlowRemoveOldTopics extends Maintenance {
 			$this->output( 'Removing ' . count( $revisions ) . ' header revisions from ' .
 				count( $uuids ) . ' headers (up to ' . $startId->getTimestamp() . ")\n" );
 
-			$this->dbFactory->getDB( DB_MASTER )->begin( __METHOD__ );
+			$this->dbFactory->getDB( DB_PRIMARY )->begin( __METHOD__ );
 
 			foreach ( $revisions as $revision ) {
 				$this->removeReferences( $revision );
@@ -162,9 +173,9 @@ class FlowRemoveOldTopics extends Maintenance {
 			$this->multiRemove( $revisions );
 
 			if ( $this->dryRun ) {
-				$this->dbFactory->getDB( DB_MASTER )->rollback( __METHOD__ );
+				$this->dbFactory->getDB( DB_PRIMARY )->rollback( __METHOD__ );
 			} else {
-				$this->dbFactory->getDB( DB_MASTER )->commit( __METHOD__ );
+				$this->dbFactory->getDB( DB_PRIMARY )->commit( __METHOD__ );
 				$this->dbFactory->waitForReplicas();
 			}
 		} while ( !empty( $revisions ) );
@@ -176,6 +187,7 @@ class FlowRemoveOldTopics extends Maintenance {
 	 */
 	protected function removeTopics( $timestamp ) {
 		$dbr = $this->dbFactory->getDB( DB_REPLICA );
+		$batchSize = $this->getBatchSize();
 
 		// start from around unix epoch - there can be no Flow data before that
 		$startId = UUID::getComparisonUUID( '1' );
@@ -184,12 +196,12 @@ class FlowRemoveOldTopics extends Maintenance {
 				'Workflow',
 				[
 					new RawSql( 'workflow_id > ' . $dbr->addQuotes( $startId->getBinary() ) ),
-					'workflow_wiki' => wfWikiID(),
+					'workflow_wiki' => WikiMap::getCurrentWikiId(),
 					'workflow_type' => 'topic',
-					new RawSql( 'workflow_last_update_timestamp < ' . $dbr->addQuotes( $timestamp ) ),
+					new RawSql( 'workflow_last_update_timestamp < ' . $dbr->addQuotes( $dbr->timestamp( $timestamp ) ) ),
 				],
 				[
-					'limit' => $this->mBatchSize,
+					'limit' => $batchSize,
 					'sort' => 'workflow_id',
 					'order' => 'ASC',
 				]
@@ -211,12 +223,13 @@ class FlowRemoveOldTopics extends Maintenance {
 
 	/**
 	 * @param string $timestamp Timestamp in TS_MW format
-	 * @throws \Wikimedia\Rdbms\DBUnexpectedError
-	 * @throws \Flow\Exception\FlowException
+	 * @throws DBUnexpectedError
+	 * @throws FlowException
 	 */
 	protected function removeTopicsWithFlowUpdates( $timestamp ) {
 		$dbr = $this->dbFactory->getDB( DB_REPLICA );
-		$talkpageManager = Flow\Hooks::getOccupationController()->getTalkpageManager();
+		$batchSize = $this->getBatchSize();
+		$talkpageManager = Hooks::getOccupationController()->getTalkpageManager();
 
 		// start from around unix epoch - there can be no Flow data before that
 		$batchStartId = UUID::getComparisonUUID( '1' );
@@ -234,13 +247,13 @@ class FlowRemoveOldTopics extends Maintenance {
 					// workflow_id condition is only used to batch, the exact
 					// $batchStartId otherwise doesn't matter (unlike rev_id)
 					'workflow_id > ' . $dbr->addQuotes( $batchStartId->getBinary() ),
-					'workflow_wiki' => wfWikiID(),
+					'workflow_wiki' => WikiMap::getCurrentWikiId(),
 					'workflow_type' => 'topic',
-					'workflow_last_update_timestamp >= ' . $dbr->addQuotes( $timestamp ),
+					'workflow_last_update_timestamp >= ' . $dbr->addQuotes( $dbr->timestamp( $timestamp ) ),
 				],
 				__METHOD__,
 				[
-					'LIMIT' => $this->mBatchSize,
+					'LIMIT' => $batchSize,
 					'ORDER BY' => 'workflow_id ASC',
 					// we only want to find topics that were only altered by talk
 					// page manager: as long as anyone else edited any post, we're
@@ -272,10 +285,10 @@ class FlowRemoveOldTopics extends Maintenance {
 
 	/**
 	 * @param Workflow[] $workflows
-	 * @throws \Wikimedia\Rdbms\DBUnexpectedError
+	 * @throws DBUnexpectedError
 	 */
 	protected function removeWorkflows( array $workflows ) {
-		$this->dbFactory->getDB( DB_MASTER )->begin( __METHOD__ );
+		$this->dbFactory->getDB( DB_PRIMARY )->begin( __METHOD__ );
 
 		foreach ( $workflows as $workflow ) {
 			$this->removeSummary( $workflow );
@@ -286,9 +299,9 @@ class FlowRemoveOldTopics extends Maintenance {
 		$this->multiRemove( $workflows );
 
 		if ( $this->dryRun ) {
-			$this->dbFactory->getDB( DB_MASTER )->rollback( __METHOD__ );
+			$this->dbFactory->getDB( DB_PRIMARY )->rollback( __METHOD__ );
 		} else {
-			$this->dbFactory->getDB( DB_MASTER )->commit( __METHOD__ );
+			$this->dbFactory->getDB( DB_PRIMARY )->commit( __METHOD__ );
 			$this->dbFactory->waitForReplicas();
 		}
 	}
@@ -366,7 +379,7 @@ class FlowRemoveOldTopics extends Maintenance {
 
 	protected function removeReferences( AbstractRevision $revision ) {
 		$wikiReferences = $this->storage->find( 'WikiReference', [
-			'ref_src_wiki' => wfWikiID(),
+			'ref_src_wiki' => WikiMap::getCurrentWikiId(),
 			'ref_src_object_type' => $revision->getRevisionType(),
 			'ref_src_object_id' => $revision->getCollectionId(),
 		] );
@@ -376,7 +389,7 @@ class FlowRemoveOldTopics extends Maintenance {
 		}
 
 		$urlReferences = $this->storage->find( 'URLReference', [
-			'ref_src_wiki' => wfWikiID(),
+			'ref_src_wiki' => WikiMap::getCurrentWikiId(),
 			'ref_src_object_type' => $revision->getRevisionType(),
 			'ref_src_object_id' => $revision->getCollectionId(),
 		] );

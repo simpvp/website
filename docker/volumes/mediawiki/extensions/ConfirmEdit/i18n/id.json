@@ -2,6 +2,7 @@
 	"@metadata": {
 		"authors": [
 			"Borgx",
+			"Daud I.F. Argana",
 			"Diki Ananta",
 			"Farras",
 			"Ilham151096",
@@ -9,8 +10,7 @@
 			"Iwan Novirion",
 			"Kenrick95",
 			"Rex",
-			"Sumbukompor",
-			"Daud I.F. Argana"
+			"Sumbukompor"
 		]
 	},
 	"captcha-edit": "Untuk menyunting halaman ini, harap pecahkan pekerjaan sederhana di bawah ini dan masukkan jawabannya di kotak yang tersedia ([[Special:Captcha/help|info lengkap]]):",
@@ -40,5 +40,6 @@
 	"confirmedit-preview-content": "Konten",
 	"confirmedit-preview-validity": "Keabsahan",
 	"confirmedit-preview-valid": "sah",
-	"confirmedit-preview-invalid": "tidak sah"
+	"confirmedit-preview-invalid": "tidak sah",
+	"confirmedit-preview-description": "Tabel berikut menampilkan daftar baris di halaman ini dan apakah alamat IP atau jangkauan alamat IP-nya sah atau tidak. Jika barisnya merupakan alamat IP atau jangkauan alamat IP yang sah, alamat tersebut akan dibebaskan dari pemeriksaan CAPTCHA, tetapi baris yang tidak sah akan diabaikan. Contoh jangkauan alamat IP yang sah adalah sebagai berikut: 69.208.0.0/16 yang menjangkau 69.208.0.0 sampai 69.208.255.255. [https://www.mediawiki.org/wiki/Special:MyLanguage/Help:Range_blocks#Calculating_the_CIDR_suffix Informasi lebih lanjut] tentang menghitung jangkauan alamat IP."
 }

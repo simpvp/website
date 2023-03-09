@@ -8,6 +8,7 @@ use Flow\Model\UUID;
 use Html;
 use LightnCandy\LightnCandy;
 use LightnCandy\SafeString;
+use MediaWiki\MediaWikiServices;
 use MWTimestamp;
 use OOUI\IconWidget;
 use RequestContext;
@@ -109,7 +110,7 @@ class TemplateHelper {
 
 		/** @var callable $renderer */
 		$renderer = require $filenames['compiled'];
-		$this->renderers[$templateName] = function ( $args, array $scopes = [] ) use ( $templateName, $renderer ) {
+		$this->renderers[$templateName] = static function ( $args, array $scopes = [] ) use ( $templateName, $renderer ) {
 			return $renderer( $args, $scopes );
 		};
 		return $this->renderers[$templateName];
@@ -131,7 +132,7 @@ class TemplateHelper {
 					| LightnCandy::FLAG_SPVARS
 					| LightnCandy::FLAG_HANDLEBARS
 					| LightnCandy::FLAG_RUNTIMEPARTIAL,
-				'partialresolver' => function ( $context, $name ) use ( $templateDir ) {
+				'partialresolver' => static function ( $context, $name ) use ( $templateDir ) {
 					$filename = "$templateDir/$name.partial.handlebars";
 					if ( file_exists( $filename ) ) {
 						return file_get_contents( $filename );
@@ -149,6 +150,7 @@ class TemplateHelper {
 					'historyDescription' => 'Flow\TemplateHelper::historyDescription',
 					'showCharacterDifference' => 'Flow\TemplateHelper::showCharacterDifference',
 					'l10nParse' => 'Flow\TemplateHelper::l10nParse',
+					'l10nParseFlowTermsOfUse' => 'Flow\TemplateHelper::l10nParseFlowTermsOfUse',
 					'diffRevision' => 'Flow\TemplateHelper::diffRevision',
 					'diffUndo' => 'Flow\TemplateHelper::diffUndo',
 					'moderationAction' => 'Flow\TemplateHelper::moderationAction',
@@ -225,7 +227,7 @@ class TemplateHelper {
 	 * @return SafeString|null
 	 */
 	protected static function timestamp( $timestamp ) {
-		global $wgLang, $wgUser;
+		global $wgLang;
 
 		if ( !$timestamp ) {
 			return null;
@@ -240,7 +242,10 @@ class TemplateHelper {
 			[
 				'time_iso' => $timestamp,
 				'time_ago' => $wgLang->getHumanTimestamp( $ts ),
-				'time_readable' => $wgLang->userTimeAndDate( $timestamp, $wgUser ),
+				'time_readable' => $wgLang->userTimeAndDate(
+					$timestamp,
+					RequestContext::getMain()->getUser()
+				),
 				'guid' => null, // generated client-side
 			]
 		) );
@@ -360,7 +365,7 @@ class TemplateHelper {
 			}
 		}
 
-		if ( $raw === false ) {
+		if ( !$raw ) {
 			$formattedTimeOutput = htmlspecialchars( $formattedTime );
 		}
 
@@ -369,7 +374,6 @@ class TemplateHelper {
 			$class[] = 'history-deleted';
 		}
 
-		// @phan-suppress-next-line SecurityCheck-DoubleEscaped
 		return new SafeString(
 			'<span class="plainlinks">'
 			. Html::rawElement( 'span', [ 'class' => $class ], $formattedTimeOutput )
@@ -395,7 +399,6 @@ class TemplateHelper {
 		// RevisionFormatter::getDescriptionParams() uses a foreach loop to build this array
 		// from the i18n-params definition in FlowActions.php.
 		// A variety of the i18n history messages contain wikitext and require ->parse().
-		// @phan-suppress-next-line SecurityCheck-DoubleEscaped
 		return new SafeString( wfMessage( $i18nKey, array_values( $revision['properties'] ) )->parse() );
 	}
 
@@ -406,7 +409,6 @@ class TemplateHelper {
 	 * @return SafeString
 	 */
 	public static function showCharacterDifference( $old, $new ) {
-		// @phan-suppress-next-line SecurityCheck-DoubleEscaped
 		return new SafeString( \ChangesList::showCharacterDifference( (int)$old, (int)$new ) );
 	}
 
@@ -427,7 +429,6 @@ class TemplateHelper {
 		$target = empty( $input['target'] ) ? '' : 'data-target="' . htmlspecialchars( $input['target'] ) . '"';
 		$sectionId = empty( $input['id'] ) ? '' : 'id="' . htmlspecialchars( $input['id'] ) . '"';
 
-		// @phan-suppress-next-line SecurityCheck-DoubleEscaped
 		return new SafeString(
 			'<script name="handlebars-template-progressive-enhancement"' .
 				' type="text/x-handlebars-template-progressive-enhancement"' .
@@ -449,6 +450,7 @@ class TemplateHelper {
 	 */
 	public static function oouify( ...$args ) {
 		$options = array_pop( $args );
+		// @phan-suppress-next-line PhanTypeArraySuspiciousNullable Only when $args is empty
 		$named = $options['hash'];
 
 		$widgetType = $named[ 'type' ];
@@ -508,8 +510,19 @@ class TemplateHelper {
 	public static function l10nParse( ...$args ) {
 		$options = array_pop( $args );
 		$str = array_shift( $args );
-		// @phan-suppress-next-line SecurityCheck-DoubleEscaped
 		return new SafeString( wfMessage( $str, $args )->parse() );
+	}
+
+	/**
+	 * @param string $key
+	 *
+	 * @return SafeString HTML
+	 */
+	public static function l10nParseFlowTermsOfUse( $key ) {
+		$context = RequestContext::getMain();
+		$config = MediaWikiServices::getInstance()->getMainConfig();
+		$messages = Hooks::getTermsOfUseMessagesParsed( $context, $config );
+		return new SafeString( $messages[ $key ] );
 	}
 
 	/**
@@ -547,11 +560,11 @@ class TemplateHelper {
 		}
 		// Work around exception in DifferenceEngine::showDiffStyle() (T202454)
 		$out = RequestContext::getMain()->getOutput();
+		$out->addModules( 'mediawiki.diff' );
 		$out->addModuleStyles( 'mediawiki.diff.styles' );
 
 		$renderer = Container::get( 'lightncandy' )->getTemplate( 'flow_revision_diff_header' );
 
-		// @phan-suppress-next-line SecurityCheck-DoubleEscaped
 		return new SafeString( $differenceEngine->addHeader(
 			$data['diff_content'],
 			$renderer( [
@@ -580,9 +593,9 @@ class TemplateHelper {
 		}
 		// Work around exception in DifferenceEngine::showDiffStyle() (T202454)
 		$out = RequestContext::getMain()->getOutput();
+		$out->addModules( 'mediawiki.diff' );
 		$out->addModuleStyles( 'mediawiki.diff.styles' );
 
-		// @phan-suppress-next-line SecurityCheck-DoubleEscaped
 		return new SafeString( $differenceEngine->addHeader(
 			$diffContent,
 			wfMessage( 'flow-undo-latest-revision' )->parse(),
@@ -622,7 +635,7 @@ class TemplateHelper {
 	 * @throws FlowException Fails when callbacks are not Closure instances
 	 */
 	public static function ifAnonymous( $options ) {
-		if ( RequestContext::getMain()->getUser()->isAnon() ) {
+		if ( !RequestContext::getMain()->getUser()->isRegistered() ) {
 			$fn = $options['fn'];
 			if ( !$fn instanceof Closure ) {
 				throw new FlowException( 'Expected callback to be Closuire instance' );
@@ -780,7 +793,7 @@ class TemplateHelper {
 
 		// Enhance the patrol link with ajax
 		// FIXME: This duplicates DifferenceEngine::markPatrolledLink.
-		$outputPage->preventClickjacking();
+		$outputPage->setPreventClickjacking( true );
 		$outputPage->addModules( 'mediawiki.misc-authed-curate' );
 	}
 }

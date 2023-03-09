@@ -46,7 +46,10 @@ class HeaderBlock extends AbstractBlock {
 	 */
 	protected $supportedGetActions = [ 'view', 'compare-header-revisions', 'edit-header', 'view-header', 'undo-edit-header' ];
 
-	// @Todo - fill in the template names
+	/**
+	 * @var string[]
+	 * @todo Fill in the template names
+	 */
 	protected $templates = [
 		'view' => '',
 		'compare-header-revisions' => 'diff_view',
@@ -237,7 +240,11 @@ class HeaderBlock extends AbstractBlock {
 		return $output;
 	}
 
-	// @Todo - duplicated logic in other diff view block
+	/**
+	 * @todo Duplicated logic in other diff view block
+	 * @param array $options
+	 * @return array
+	 */
 	protected function renderDiffviewApi( array $options ) {
 		if ( !isset( $options['newRevision'] ) || !is_string( $options['newRevision'] ) ) {
 			throw new InvalidInputException( 'A valid revision must be provided for comparison', 'revision-comparison' );
@@ -257,7 +264,11 @@ class HeaderBlock extends AbstractBlock {
 		];
 	}
 
-	// @Todo - duplicated logic in other single view block
+	/**
+	 * @todo Duplicated logic in other single view block
+	 * @param int $revId
+	 * @return array
+	 */
 	protected function renderSingleViewApi( $revId ) {
 		/** @var HeaderViewQuery $query */
 		$query = Container::get( 'query.header.view' );

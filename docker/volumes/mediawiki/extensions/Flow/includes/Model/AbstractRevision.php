@@ -14,7 +14,6 @@ use RecentChange;
 use Sanitizer;
 use Title;
 use User;
-use WikiPage;
 
 abstract class AbstractRevision {
 	public const MODERATED_NONE = '';
@@ -183,7 +182,7 @@ abstract class AbstractRevision {
 
 		$obj->moderationState = $row['rev_mod_state'];
 		$obj->moderatedBy = UserTuple::newFromArray( $row, 'rev_mod_user_' );
-		$obj->moderationTimestamp = $row['rev_mod_timestamp'] ?: null;
+		$obj->moderationTimestamp = wfTimestampOrNull( TS_MW, $row['rev_mod_timestamp'] ?: null );
 		$obj->moderatedReason = isset( $row['rev_mod_reason'] ) && $row['rev_mod_reason']
 			? $row['rev_mod_reason'] : null;
 
@@ -210,6 +209,9 @@ abstract class AbstractRevision {
 	 * @return array
 	 */
 	public static function toStorageRow( $obj ) {
+		$dbr = MediaWikiServices::getInstance()
+			->getDBLoadBalancer()
+			->getConnection( DB_REPLICA );
 		return [
 			'rev_id' => $obj->revId->getAlphadecimal(),
 			'rev_user_id' => $obj->user->id,
@@ -228,7 +230,7 @@ abstract class AbstractRevision {
 			'rev_mod_user_id' => $obj->moderatedBy ? $obj->moderatedBy->id : null,
 			'rev_mod_user_ip' => $obj->moderatedBy ? $obj->moderatedBy->ip : null,
 			'rev_mod_user_wiki' => $obj->moderatedBy ? $obj->moderatedBy->wiki : null,
-			'rev_mod_timestamp' => $obj->moderationTimestamp,
+			'rev_mod_timestamp' => $dbr->timestampOrNull( $obj->moderationTimestamp ),
 			'rev_mod_reason' => $obj->moderatedReason,
 
 			'rev_last_edit_id' => $obj->lastEditId ? $obj->lastEditId->getAlphadecimal() : null,
@@ -555,13 +557,15 @@ abstract class AbstractRevision {
 
 		if ( $format === 'wikitext' ) {
 			// Run pre-save transform
-			$content = ContentHandler::makeContent( $content, $title, CONTENT_MODEL_WIKITEXT )
-				->preSaveTransform(
-					$title,
-					$this->getUser(),
-					WikiPage::factory( $title )->makeParserOptions( $this->getUser() )
-				)
-				->serialize( 'text/x-wiki' );
+			$contentTransformer = MediaWikiServices::getInstance()->getContentTransformer();
+			$content = ContentHandler::makeContent( $content, $title, CONTENT_MODEL_WIKITEXT );
+			$content = $contentTransformer->preSaveTransform(
+				$content,
+				$title,
+				$this->getUser(),
+				MediaWikiServices::getInstance()->getWikiPageFactory()
+					->newFromTitle( $title )->makeParserOptions( $this->getUser() )
+			)->serialize( 'text/x-wiki' );
 		}
 
 		// Keep consistent with normal edit page, trim only trailing whitespaces
@@ -575,6 +579,7 @@ abstract class AbstractRevision {
 				$format, $storageFormat, $content, $title );
 		}
 
+		// @phan-suppress-next-line SecurityCheck-DoubleEscaped Seems a false positive
 		$this->setContentRaw( $this->convertedContent );
 	}
 
@@ -726,7 +731,7 @@ abstract class AbstractRevision {
 	 */
 	public function isFlaggedAny( $flags ) {
 		foreach ( (array)$flags as $flag ) {
-			if ( false !== array_search( $flag, $this->flags ) ) {
+			if ( array_search( $flag, $this->flags ) !== false ) {
 				return true;
 			}
 		}
@@ -739,7 +744,7 @@ abstract class AbstractRevision {
 	 */
 	public function isFlaggedAll( $flags ) {
 		foreach ( (array)$flags as $flag ) {
-			if ( false === array_search( $flag, $this->flags ) ) {
+			if ( array_search( $flag, $this->flags ) === false ) {
 				return false;
 			}
 		}
@@ -918,12 +923,12 @@ abstract class AbstractRevision {
 		// it is possible that more than 1 changes on the same page have the same timestamp
 		// the revision id is hidden in rc_params['flow-workflow-change']['revision']
 		$revId = $this->revId->getAlphadecimal();
-		// @codingStandardsIgnoreStart
-		while ( $row = $rows->next() ) {
-		// @codingStandardsIgnoreEnd
+		foreach ( $rows as $row ) {
 			$rc = RecentChange::newFromRow( $row );
 			$params = $rc->parseParams();
-			if ( $params && $params['flow-workflow-change']['revision'] === $revId ) {
+			if ( isset( $params['flow-workflow-change'] ) &&
+				$params['flow-workflow-change']['revision'] === $revId
+			) {
 				return $rc;
 			}
 		}

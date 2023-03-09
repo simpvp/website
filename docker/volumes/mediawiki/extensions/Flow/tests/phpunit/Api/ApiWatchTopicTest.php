@@ -22,11 +22,8 @@ class ApiWatchTopicTest extends ApiTestCase {
 				// expected key in api result
 				'watched',
 				// initialization
-				function ( User $user, Title $title ) {
-					$store = MediaWikiServices::getInstance()->getWatchedItemStore();
-					$store->removeWatch( $user, $title->getSubjectPage() );
-					$store->removeWatch( $user, $title->getTalkPage() );
-					$title->invalidateCache();
+				static function ( User $user, Title $title ) {
+					MediaWikiServices::getInstance()->getWatchlistManager()->removeWatch( $user, $title );
 				},
 				// extra request parameters
 				[],
@@ -36,12 +33,8 @@ class ApiWatchTopicTest extends ApiTestCase {
 				// expected key in api result
 				'unwatched',
 				// initialization
-				function ( User $user, Title $title ) {
-					MediaWikiServices::getInstance()->getWatchedItemStore()->addWatchBatchForUser(
-						$user,
-						[ $title->getSubjectPage(), $title->getTalkPage() ]
-					);
-					$user->invalidateCache();
+				static function ( User $user, Title $title ) {
+					MediaWikiServices::getInstance()->getWatchlistManager()->addWatch( $user, $title );
 				},
 				// extra request parameters
 				[ 'unwatch' => 1 ],
@@ -59,11 +52,10 @@ class ApiWatchTopicTest extends ApiTestCase {
 		$init( self::$users['sysop']->getUser(), $title );
 
 		// issue a watch api request
-		$data = $this->doApiRequest( $request + [
+		$data = $this->doApiRequestWithToken( $request + [
 				'action' => 'watch',
 				'format' => 'json',
 				'titles' => $topic['topic-page'],
-				'token' => $this->getEditToken( null, 'watchtoken' ),
 		] );
 		$this->assertArrayHasKey( $expect, $data[0]['watch'][0], $message );
 	}

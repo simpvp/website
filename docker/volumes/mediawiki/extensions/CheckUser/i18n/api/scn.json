@@ -1,9 +1,9 @@
 {
 	"@metadata": {
 		"authors": [
+			"Ajeje Brazorf",
 			"Pippinu",
-			"Sarvaturi",
-			"Ajeje Brazorf"
+			"Sarvaturi"
 		]
 	},
 	"apihelp-query+checkuser-description": "Cuntrolla quali nnirizzi IP sunnu adupirati dûn nomu utenti datu, o quali nomi utenti sunnu adupirati d'un nnirizzu IP datu.",

@@ -2,11 +2,12 @@
 	"@metadata": {
 		"authors": [
 			"Base",
+			"DDPAT",
 			"Dars",
+			"Ice bulldog",
 			"Piramidion",
 			"Quiddity",
-			"Ата",
-			"DDPAT"
+			"Ата"
 		]
 	},
 	"apihelp-flow-description": "Дозволяє застосовувати дії до сторінок Структурованих обговорень.",

@@ -1,15 +1,28 @@
 <?php
 
+namespace Flow\Maintenance;
+
+use BatchRowIterator;
+use Flow\BoardMover;
 use Flow\Container;
 use Flow\Content\BoardContent;
+use Flow\Data\ManagerGroup;
+use Flow\DbFactory;
 use Flow\Exception\UnknownWorkflowIdException;
+use Flow\WorkflowLoaderFactory;
+use Maintenance;
 use MediaWiki\MediaWikiServices;
-use MediaWiki\Storage\RevisionRecord;
-use MediaWiki\Storage\SlotRecord;
+use MediaWiki\Revision\RevisionRecord;
+use MediaWiki\Revision\SlotRecord;
+use Title;
+use WikiMap;
 
-require_once getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php'
-	: __DIR__ . '/../../../maintenance/Maintenance.php';
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
 
 /**
  * Changes Flow boards and their topics to be associated with their current title, based on the JSON content
@@ -21,22 +34,22 @@ require_once getenv( 'MW_INSTALL_PATH' ) !== false
  */
 class FlowFixInconsistentBoards extends Maintenance {
 	/**
-	 * @var Flow\DbFactory
+	 * @var DbFactory
 	 */
 	protected $dbFactory;
 
 	/**
-	 * @var Flow\WorkflowLoaderFactory
+	 * @var WorkflowLoaderFactory
 	 */
 	protected $workflowLoaderFactory;
 
 	/**
-	 * @var Flow\BoardMover
+	 * @var BoardMover
 	 */
 	protected $boardMover;
 
 	/**
-	 * @var Flow\Data\ManagerGroup
+	 * @var ManagerGroup
 	 */
 	protected $storage;
 
@@ -68,13 +81,14 @@ class FlowFixInconsistentBoards extends Maintenance {
 
 		$limit = $this->getOption( 'limit' );
 
-		$wikiDbw = $this->dbFactory->getWikiDB( DB_MASTER );
+		$wikiDbw = $this->dbFactory->getWikiDB( DB_PRIMARY );
 
-		$iterator = new BatchRowIterator( $wikiDbw, 'page', 'page_id', $this->mBatchSize );
+		$iterator = new BatchRowIterator( $wikiDbw, 'page', 'page_id', $this->getBatchSize() );
 		$iterator->setFetchColumns( [ 'page_namespace', 'page_title', 'page_latest' ] );
 		$iterator->addConditions( [
 			'page_content_model' => CONTENT_MODEL_FLOW_BOARD,
 		] );
+		$iterator->setCaller( __METHOD__ );
 
 		if ( $this->hasOption( 'namespaceName' ) ) {
 			$namespaceName = $this->getOption( 'namespaceName' );
@@ -151,9 +165,9 @@ class FlowFixInconsistentBoards extends Maintenance {
 
 					// Sanity check, or this will fail in BoardMover
 					$workflowByPageId = $this->storage->find( 'Workflow', [
-							'workflow_wiki' => wfWikiID(),
-							'workflow_page_id' => $pageId,
-						] );
+						'workflow_wiki' => WikiMap::getCurrentWikiId(),
+						'workflow_page_id' => $pageId,
+					] );
 
 					if ( !$workflowByPageId ) {
 						$this->error( "ERROR: '$coreTitle' has page ID '$pageId', but no workflow " .

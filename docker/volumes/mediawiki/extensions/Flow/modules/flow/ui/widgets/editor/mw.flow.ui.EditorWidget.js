@@ -9,13 +9,10 @@
 	 * @constructor
 	 * @param {Object} [config] Configuration options
 	 * @cfg {string} [placeholder] Placeholder text to use for the editor when empty
-	 * @cfg {string} [termsMsgKey='flow-terms-of-use-edit'] i18n message key for the footer message
+	 * @cfg {string} [termsKey='edit'] terms-of-use message key for the footer message
 	 * @cfg {string} [saveMsgKey='flow-newtopic-save'] i18n message key for the save button
 	 * @cfg {string} [cancelMsgKey='flow-cancel'] i18n message key for the cancel button
 	 * @cfg {boolean} [autoFocus=true] Automatically focus after switching editors
-	 * @cfg {boolean} [cancelOnEscape=true] Emit 'cancel' when Esc is pressed
-	 * @cfg {boolean} [confirmCancel=true] Pop up a confirmation dialog if the user attempts
-	 *  to cancel when there are changes in the editor.
 	 * @cfg {boolean} [confirmLeave=true] Pop up a confirmation dialog if the user attempts
 	 *  to navigate away when there are changes in the editor.
 	 * @cfg {Function} [leaveCallback] Function to call when the user attempts to navigate away.
@@ -36,7 +33,6 @@
 		this.useVE = this.constructor.static.isVisualEditorSupported();
 
 		this.placeholder = config.placeholder || '';
-		this.confirmCancel = !!config.confirmCancel || config.cancelOnEscape === undefined;
 		this.confirmLeave = !!config.confirmLeave || config.confirmLeave === undefined;
 		this.leaveCallback = config.leaveCallback;
 		this.id = config.id;
@@ -44,12 +40,12 @@
 		this.loadPromise = null;
 
 		this.error = new OO.ui.LabelWidget( {
-			classes: [ 'flow-ui-editorWidget-error flow-errors errorbox' ]
+			classes: [ 'flow-ui-editorWidget-error flow-errors flow-errorbox mw-message-box mw-message-box-error' ]
 		} );
 		this.error.toggle( false );
 
 		this.editorControlsWidget = new mw.flow.ui.EditorControlsWidget( {
-			termsMsgKey: config.termsMsgKey || 'flow-terms-of-use-edit',
+			termsKey: config.termsKey || 'edit',
 			saveMsgKey: config.saveMsgKey || 'flow-newtopic-save',
 			cancelMsgKey: config.cancelMsgKey || 'flow-cancel',
 			saveable: this.saveable
@@ -114,15 +110,13 @@
 			save: 'onEditorControlsWidgetSave'
 		} );
 
-		if ( config.cancelOnEscape || config.cancelOnEscape === undefined ) {
-			this.$element.on( 'keydown', function ( e ) {
-				if ( e.which === OO.ui.Keys.ESCAPE ) {
-					widget.onEditorControlsWidgetCancel();
-					e.preventDefault();
-					e.stopPropagation();
-				}
-			} );
-		}
+		this.$element.on( 'keydown', function ( e ) {
+			if ( e.which === OO.ui.Keys.ESCAPE ) {
+				widget.onEditorControlsWidgetCancel();
+				e.preventDefault();
+				e.stopPropagation();
+			}
+		} );
 
 		this.$element
 			.append(
@@ -220,6 +214,7 @@
 					widget.target.connect( widget, {
 						surfaceReady: 'onTargetSurfaceReady',
 						switchMode: 'onTargetSwitchMode',
+						cancel: 'onEditorControlsWidgetCancel',
 						submit: 'onTargetSubmit'
 					} );
 					widget.$editorWrapper.prepend( widget.target.$element );
@@ -255,7 +250,6 @@
 				widget.bindBeforeUnloadHandler();
 				widget.maybeAutoFocus();
 				widget.wikitextHelpLabel.toggle( widget.target.getDefaultMode() === 'source' );
-				widget.target.getSurface().getView().getDocument().getDocumentNode().$element.attr( 'aria-label', widget.placeholder );
 			}, function ( error ) {
 				widget.error.setLabel( $( '<span>' ).text( error || mw.msg( 'flow-error-default' ) ) );
 				widget.error.toggle( true );
@@ -409,7 +403,7 @@
 	mw.flow.ui.EditorWidget.prototype.onEditorControlsWidgetCancel = function () {
 		var widget = this;
 
-		if ( this.confirmCancel && this.hasBeenChanged() ) {
+		if ( this.hasBeenChanged() ) {
 			mw.flow.ui.windowManager.openWindow( 'cancelconfirm' ).closed.then( function ( data ) {
 				if ( data && data.action === 'discard' ) {
 					// Remove content

@@ -1,10 +1,18 @@
 <?php
 
-use MediaWiki\MediaWikiServices;
+namespace Flow\Maintenance;
 
-require_once getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php'
-	: __DIR__ . '/../../../maintenance/Maintenance.php';
+use LoggedUpdateMaintenance;
+use MediaWiki\MediaWikiServices;
+use MWException;
+use UserArray;
+
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
 
 /**
  * Sets Flow beta feature preference to true
@@ -36,12 +44,13 @@ class FlowUpdateBetaFeaturePreference extends LoggedUpdateMaintenance {
 			return true;
 		}
 
-		$db = $this->getDB( DB_MASTER );
+		$db = $this->getDB( DB_PRIMARY );
 
 		$innerQuery = $db->selectSQLText(
 			'user_properties',
 			'up_user',
 			[
+				// It works because this beta feature is exempted from auto-enroll.
 				'up_property' => BETA_FEATURE_FLOW_USER_TALK_PAGE,
 				'up_value' => 1
 			],
@@ -65,15 +74,19 @@ class FlowUpdateBetaFeaturePreference extends LoggedUpdateMaintenance {
 			]
 		);
 
-		$lbFactory = MediaWikiServices::getInstance()->getDBLoadBalancerFactory();
+		$services = MediaWikiServices::getInstance();
+		$lbFactory = $services->getDBLoadBalancerFactory();
+		$userOptionsManager = $services->getUserOptionsManager();
 
 		$i = 0;
+		$batchSize = $this->getBatchSize();
 		$users = UserArray::newFromResult( $result );
 		foreach ( $users as $user ) {
-			$user->setOption( BETA_FEATURE_FLOW_USER_TALK_PAGE, 1 );
-			$user->saveSettings();
+			// It works because this beta feature is exempted from auto-enroll.
+			$userOptionsManager->setOption( $user, BETA_FEATURE_FLOW_USER_TALK_PAGE, 1 );
+			$userOptionsManager->saveOptions( $user );
 
-			if ( ++$i % $this->mBatchSize === 0 ) {
+			if ( ++$i % $batchSize === 0 ) {
 				$lbFactory->waitForReplication();
 			}
 		}
@@ -96,5 +109,5 @@ class FlowUpdateBetaFeaturePreference extends LoggedUpdateMaintenance {
 	}
 }
 
-$maintClass = FlowUpdateBetaFeaturePreference::class; // Tells it to run the class
+$maintClass = FlowUpdateBetaFeaturePreference::class;
 require_once RUN_MAINTENANCE_IF_MAIN;

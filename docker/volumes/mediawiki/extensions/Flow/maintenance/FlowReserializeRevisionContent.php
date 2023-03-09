@@ -1,11 +1,22 @@
 <?php
 
+namespace Flow\Maintenance;
+
+use BatchRowIterator;
+use Diff;
 use Flow\Container;
 use Flow\Conversion\Utils;
+use Flow\Data\ManagerGroup;
 use Flow\Data\ObjectManager;
+use Flow\DbFactory;
 use Flow\Model\AbstractRevision;
 use Flow\Model\UUID;
 use Flow\Parsoid\ContentFixer;
+use Maintenance;
+use ReflectionClass;
+use ReflectionMethod;
+use UnifiedDiffFormatter;
+use WikiMap;
 
 $IP = getenv( 'MW_INSTALL_PATH' );
 if ( $IP === false ) {
@@ -24,12 +35,12 @@ class FlowReserializeRevisionContent extends Maintenance {
 	private $setContentRawMethod;
 
 	/**
-	 * @var \Flow\DbFactory
+	 * @var DbFactory
 	 */
 	private $dbFactory;
 
 	/**
-	 * @var \Flow\Data\ManagerGroup
+	 * @var ManagerGroup
 	 */
 	private $storage;
 
@@ -78,15 +89,16 @@ class FlowReserializeRevisionContent extends Maintenance {
 		$this->storage = Container::get( 'storage' );
 
 		$dbr = $this->dbFactory->getDb( DB_REPLICA );
-		$dbw = $this->dbFactory->getDb( DB_MASTER );
+		$dbw = $this->dbFactory->getDb( DB_PRIMARY );
 		$newVersion = Utils::PARSOID_VERSION;
 
-		$iterator = new BatchRowIterator( $dbw, 'flow_revision', 'rev_id', $this->mBatchSize );
+		$iterator = new BatchRowIterator( $dbw, 'flow_revision', 'rev_id', $this->getBatchSize() );
 		$iterator->addConditions( [
-			'rev_user_wiki' => wfWikiID(),
+			'rev_user_wiki' => WikiMap::getCurrentWikiId(),
 			'rev_flags' . $dbr->buildLike( $dbr->anyString(), 'html', $dbr->anyString() ),
 		] );
 		$iterator->setFetchColumns( [ 'rev_id', 'rev_type', 'rev_content', 'rev_flags' ] );
+		$iterator->setCaller( __METHOD__ );
 
 		foreach ( $iterator as $batch ) {
 			foreach ( $batch as $row ) {

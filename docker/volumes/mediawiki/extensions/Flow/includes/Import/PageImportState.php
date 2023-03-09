@@ -92,7 +92,7 @@ class PageImportState {
 		$this->boardWorkflow = $boardWorkflow;
 		$this->sourceStore = $sourceStore;
 		$this->logger = $logger;
-		$this->dbw = $dbFactory->getDB( DB_MASTER );
+		$this->dbw = $dbFactory->getDB( DB_PRIMARY );
 		$this->postprocessor = $postprocessor;
 		$this->deferredQueue = $deferredQueue;
 		$this->allowUnknownUsernames = $allowUnknownUsernames;
@@ -131,7 +131,7 @@ class PageImportState {
 	 *
 	 * @param string $type Class name to retrieve
 	 * @param UUID $id ID of the object to retrieve
-	 * @return Object|false
+	 * @return object|false
 	 */
 	public function get( $type, UUID $id ) {
 		return $this->storage->get( $type, $id );

@@ -1,9 +1,9 @@
 {
 	"@metadata": {
 		"authors": [
+			"Daud I.F. Argana",
 			"McDutchie",
-			"Rachmat04",
-			"Daud I.F. Argana"
+			"Rachmat04"
 		]
 	},
 	"apihelp-query+checkuser-description": "Periksa alamat IP mana yang digunakan oleh pengguna yang ditentukan atau nama pengguna manakah yang digunakan oleh alamat IP yang ditentukan.",

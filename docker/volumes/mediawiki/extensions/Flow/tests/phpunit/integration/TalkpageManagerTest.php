@@ -5,10 +5,9 @@ namespace Flow\Tests;
 use Flow\Container;
 use Flow\TalkpageManager;
 use HashConfig;
-use MediaWikiTestCase;
+use MediaWikiIntegrationTestCase;
 use Title;
 use User;
-use WikiPage;
 use WikitextContent;
 
 /**
@@ -17,13 +16,13 @@ use WikitextContent;
  * @group Flow
  * @group Database
  */
-class TalkpageManagerTest extends MediaWikiTestCase {
+class TalkpageManagerTest extends MediaWikiIntegrationTestCase {
 	/**
 	 * @var TalkpageManager
 	 */
-	protected $talkpageManager;
+	private $talkpageManager;
 
-	public function setUp() : void {
+	public function setUp(): void {
 		parent::setUp();
 		$this->talkpageManager = Container::get( 'occupation_controller' );
 
@@ -36,9 +35,10 @@ class TalkpageManagerTest extends MediaWikiTestCase {
 
 	public function testCheckIfCreationIsPossible() {
 		$existentTitle = Title::newFromText( 'Exists' );
-		$status = WikiPage::factory( $existentTitle )
-			->doEditContent(
+		$status = $this->getServiceContainer()->getWikiPageFactory()->newFromTitle( $existentTitle )
+			->doUserEditContent(
 				new WikitextContent( 'This exists' ),
+				$this->getTestUser()->getUser(),
 				"with an edit summary"
 			);
 		if ( !$status->isGood() ) {
@@ -90,7 +90,8 @@ class TalkpageManagerTest extends MediaWikiTestCase {
 			'Correct error thrown when user does not have flow-create-board right' );
 
 		$adminUser = User::newFromName( 'UTSysop' );
-		$adminUser->addGroup( 'flow-bot' );
+		$userGroupManager = $this->getServiceContainer()->getUserGroupManager();
+		$userGroupManager->addUserToGroup( $adminUser, 'flow-bot' );
 
 		$permissionStatus = $this->talkpageManager->checkIfUserHasPermission(
 			Title::newFromText( 'User:Test123' ), $adminUser );

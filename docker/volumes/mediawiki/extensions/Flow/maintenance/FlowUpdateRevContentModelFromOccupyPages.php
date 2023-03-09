@@ -1,8 +1,16 @@
 <?php
 
-require_once getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php'
-	: __DIR__ . '/../../../maintenance/Maintenance.php';
+namespace Flow\Maintenance;
+
+use Maintenance;
+use Title;
+
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
 
 /**
  * This script should be run immediately before dropping the wgFlowOccupyPages
@@ -30,17 +38,18 @@ class FlowUpdateRevContentModelFromOccupyPages extends Maintenance {
 	public function execute() {
 		global $wgFlowOccupyPages;
 
-		$dbw = wfGetDB( DB_MASTER );
+		$dbw = wfGetDB( DB_PRIMARY );
 
 		$pageCount = count( $wgFlowOccupyPages );
 		$overallInd = 0;
 		$updatedCount = 0;
 		$skippedCount = 0;
+		$batchSize = $this->getBatchSize();
 
 		while ( $overallInd < $pageCount ) {
 			$this->beginTransaction( $dbw, __METHOD__ );
 			$batchInd = 0;
-			while ( $overallInd < $pageCount && $batchInd < $this->mBatchSize ) {
+			while ( $overallInd < $pageCount && $batchInd < $batchSize ) {
 				$pageName = $wgFlowOccupyPages[$overallInd];
 				$title = Title::newFromTextThrow( $pageName );
 				$revId = $title->getLatestRevID( Title::GAID_FOR_UPDATE );

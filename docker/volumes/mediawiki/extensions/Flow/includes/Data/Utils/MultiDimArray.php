@@ -29,6 +29,7 @@ use RecursiveIteratorIterator;
  *   )
  */
 class MultiDimArray implements \ArrayAccess {
+	/** @var array */
 	protected $data = [];
 
 	public function all() {
@@ -41,11 +42,12 @@ class MultiDimArray implements \ArrayAccess {
 	 * @return RecursiveIteratorIterator
 	 */
 	public function getIterator() {
+		// @phan-suppress-next-line PhanParamTooManyInternal
 		$it = new RecursiveArrayIterator( $this->data );
 		return new RecursiveIteratorIterator( $it );
 	}
 
-	public function offsetSet( $offset, $value ) {
+	public function offsetSet( $offset, $value ): void {
 		$data =& $this->data;
 		foreach ( (array)$offset as $key ) {
 			if ( !isset( $data[$key] ) ) {
@@ -56,6 +58,7 @@ class MultiDimArray implements \ArrayAccess {
 		$data = $value;
 	}
 
+	#[\ReturnTypeWillChange]
 	public function offsetGet( $offset ) {
 		$data =& $this->data;
 		foreach ( (array)$offset as $key ) {
@@ -70,7 +73,7 @@ class MultiDimArray implements \ArrayAccess {
 		return $data;
 	}
 
-	public function offsetUnset( $offset ) {
+	public function offsetUnset( $offset ): void {
 		$offset = (array)$offset;
 		// while loop is required to not leave behind empty arrays
 		$first = true;
@@ -90,7 +93,7 @@ class MultiDimArray implements \ArrayAccess {
 		}
 	}
 
-	public function offsetExists( $offset ) {
+	public function offsetExists( $offset ): bool {
 		$data =& $this->data;
 		foreach ( (array)$offset as $key ) {
 			if ( !isset( $data[$key] ) ) {

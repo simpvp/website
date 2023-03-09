@@ -9,6 +9,7 @@ use Elastica\Request;
 use Flow\Container;
 use PoolCounterWorkViaCallback;
 use Status;
+use WikiMap;
 
 class Searcher {
 	public const HIGHLIGHT_FIELD = 'revisions.text';
@@ -37,12 +38,12 @@ class Searcher {
 
 	/**
 	 * @param Query $query
-	 * @param string|bool $index Base name for index to search from, defaults to wfWikiID()
+	 * @param string|bool $index Base name for index to search from, defaults to WikiMap::getCurrentWikiId()
 	 * @param string|bool $type Type of revisions to retrieve, defaults to all
 	 */
 	public function __construct( Query $query, $index = false, $type = false ) {
 		$this->query = $query;
-		$this->indexBaseName = $index ?: wfWikiID();
+		$this->indexBaseName = $index ?: WikiMap::getCurrentWikiId();
 		$this->type = $type;
 		$this->connection = Container::get( 'search.connection' );
 	}
@@ -93,7 +94,7 @@ class Searcher {
 
 		// Perform the search
 		$work = new PoolCounterWorkViaCallback( 'Flow-Search', "_elasticsearch", [
-			'doWork' => function () use ( $search ) {
+			'doWork' => static function () use ( $search ) {
 				try {
 					$result = $search->search();
 					return Status::newGood( $result );
@@ -109,7 +110,7 @@ class Searcher {
 					return Status::newFatal( 'flow-error-search' );
 				}
 			},
-			'error' => function ( Status $status ) {
+			'error' => static function ( Status $status ) {
 				$status = $status->getErrorsArray();
 				wfLogWarning( 'Pool error searching Elasticsearch: ' . $status[0][0] );
 				return Status::newFatal( 'flow-error-search' );

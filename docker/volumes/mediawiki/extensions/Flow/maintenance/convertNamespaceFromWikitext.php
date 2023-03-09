@@ -1,11 +1,23 @@
 <?php
 
-use Flow\Utils\NamespaceIterator;
-use MediaWiki\MediaWikiServices;
+namespace Flow\Maintenance;
 
-require_once getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php'
-	: __DIR__ . '/../../../maintenance/Maintenance.php';
+use Flow\Container;
+use Flow\Hooks;
+use Flow\Import\Converter;
+use Flow\Import\SourceStore\NullImportSourceStore;
+use Flow\Import\Wikitext\ConversionStrategy;
+use Flow\Utils\NamespaceIterator;
+use Maintenance;
+use MediaWiki\MediaWikiServices;
+use Title;
+
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
 
 /**
  * Converts a single namespace from wikitext talk pages to flow talk pages.  Does not
@@ -69,17 +81,17 @@ class ConvertNamespaceFromWikitext extends Maintenance {
 		// @todo send to prod logger?
 		$logger = new MaintenanceDebugLogger( $this );
 
-		$dbw = wfGetDB( DB_MASTER );
-		$talkpageManager = Flow\Hooks::getOccupationController()->getTalkpageManager();
-		$converter = new \Flow\Import\Converter(
+		$dbw = wfGetDB( DB_PRIMARY );
+		$talkpageManager = Hooks::getOccupationController()->getTalkpageManager();
+		$converter = new Converter(
 			$dbw,
-			Flow\Container::get( 'importer' ),
+			Container::get( 'importer' ),
 			$logger,
 			$talkpageManager,
 
-			new Flow\Import\Wikitext\ConversionStrategy(
+			new ConversionStrategy(
 				MediaWikiServices::getInstance()->getParser(),
-				new Flow\Import\SourceStore\NullImportSourceStore(),
+				new NullImportSourceStore(),
 				$logger,
 				$talkpageManager,
 				$noConvertTemplates,

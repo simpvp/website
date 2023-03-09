@@ -2,8 +2,11 @@
 
 namespace MediaWiki\CheckUser;
 
+use Exception;
 use Firebase\JWT\JWT;
+use FormatJson;
 use MediaWiki\Session\Session;
+use MWTimestamp;
 
 class TokenManager {
 	/** @var string */
@@ -22,7 +25,7 @@ class TokenManager {
 		string $secret
 	) {
 		if ( $secret === '' ) {
-			throw new \Exception(
+			throw new Exception(
 				'CheckUser Token Manager requires $wgSecretKey to be set.'
 			);
 		}
@@ -36,14 +39,17 @@ class TokenManager {
 	 * @param array $data
 	 * @return string
 	 */
-	public function encode( Session $session, array $data ) : string {
+	public function encode( Session $session, array $data ): string {
 		$key = $this->getSessionKey( $session );
+		$iv = $this->getInitializationVector();
 		return JWT::encode(
 			[
 				// Expiration Time https://tools.ietf.org/html/rfc7519#section-4.1.4
-				'exp' => \MWTimestamp::time() + 86400, // 24 hours from now
-				// Encrypt the form data to pevent it from being leaked.
-				'data' => $this->encrypt( $data, $this->getInitializationVector( $key ) ),
+				// 24 hours from now
+				'exp' => MWTimestamp::time() + 86400,
+				'iv' => base64_encode( $iv ),
+				// Encrypt the form data to prevent it from being leaked.
+				'data' => $this->encrypt( $data, $iv ),
 			],
 			$this->getSigningKey( $key ),
 			self::SIGNING_ALGO
@@ -57,9 +63,9 @@ class TokenManager {
 	 * @param string $iv
 	 * @return string
 	 */
-	private function encrypt( $input, string $iv ) : string {
+	private function encrypt( $input, string $iv ): string {
 		return openssl_encrypt(
-			\FormatJson::encode( $input ),
+			FormatJson::encode( $input ),
 			$this->getCipherMethod(),
 			$this->secret,
 			0,
@@ -74,7 +80,7 @@ class TokenManager {
 	 * @param string $token
 	 * @return array
 	 */
-	public function decode( Session $session, string $token ) : array {
+	public function decode( Session $session, string $token ): array {
 		$key = $this->getSessionKey( $session );
 		$payload = JWT::decode(
 			$token,
@@ -84,7 +90,7 @@ class TokenManager {
 
 		return $this->decrypt(
 			$payload->data,
-			$this->getInitializationVector( $key )
+			base64_decode( $payload->iv )
 		);
 	}
 
@@ -95,7 +101,7 @@ class TokenManager {
 	 * @param string $iv
 	 * @return array
 	 */
-	private function decrypt( string $input, string $iv ) : array {
+	private function decrypt( string $input, string $iv ): array {
 		$decrypted = openssl_decrypt(
 			$input,
 			$this->getCipherMethod(),
@@ -105,23 +111,22 @@ class TokenManager {
 		);
 
 		if ( $decrypted === false ) {
-			throw new \Exception( 'Decryption Failed' );
+			throw new Exception( 'Decryption Failed' );
 		}
 
-		return \FormatJson::parse( $decrypted, \FormatJson::FORCE_ASSOC )->getValue();
+		return FormatJson::parse( $decrypted, FormatJson::FORCE_ASSOC )->getValue();
 	}
 
 	/**
 	 * Get the initialization vector.
 	 *
-	 * This must be consistent between encryption and decryption
-	 * and must be no more than 16 bytes in length.
+	 * This must be consistent between encryption and decryption,
+	 * must be no more than 16 bytes in length and never repeat.
 	 *
-	 * @param string $sessionKey
 	 * @return string
 	 */
-	private function getInitializationVector( string $sessionKey ) : string {
-		return hash_hmac( 'md5', $sessionKey, $this->secret, true );
+	private function getInitializationVector(): string {
+		return random_bytes( 16 );
 	}
 
 	/**
@@ -131,7 +136,7 @@ class TokenManager {
 	 *
 	 * @return string
 	 */
-	private function getCipherMethod() : string {
+	private function getCipherMethod(): string {
 		if ( !$this->cipherMethod ) {
 			$methods = openssl_get_cipher_methods();
 			if ( in_array( 'aes-256-ctr', $methods, true ) ) {
@@ -139,7 +144,7 @@ class TokenManager {
 			} elseif ( in_array( 'aes-256-cbc', $methods, true ) ) {
 				$this->cipherMethod = 'aes-256-cbc';
 			} else {
-				throw new \Exception( 'No valid cipher method found with openssl_get_cipher_methods()' );
+				throw new Exception( 'No valid cipher method found with openssl_get_cipher_methods()' );
 			}
 		}
 
@@ -159,7 +164,7 @@ class TokenManager {
 	 *
 	 * @return string
 	 */
-	private function getSessionKey( Session $session ) : string {
+	private function getSessionKey( Session $session ): string {
 		$key = $session->get( 'CheckUserTokenKey' );
 		if ( $key === null ) {
 			$key = base64_encode( random_bytes( 16 ) );
@@ -175,7 +180,7 @@ class TokenManager {
 	 * @param string $sessionKey
 	 * @return string
 	 */
-	private function getSigningKey( string $sessionKey ) : string {
+	private function getSigningKey( string $sessionKey ): string {
 		return hash_hmac( 'sha256', $sessionKey, $this->secret );
 	}
 }

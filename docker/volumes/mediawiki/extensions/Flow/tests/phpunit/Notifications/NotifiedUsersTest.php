@@ -21,6 +21,7 @@ use User;
  * @group Database
  */
 class NotifiedUsersTest extends PostRevisionTestCase {
+	/** @inheritDoc */
 	protected $tablesUsed = [
 		'echo_event',
 		'echo_notification',
@@ -35,7 +36,7 @@ class NotifiedUsersTest extends PostRevisionTestCase {
 		'text',
 	];
 
-	protected function setUp() : void {
+	protected function setUp(): void {
 		parent::setUp();
 
 		if ( !ExtensionRegistry::getInstance()->isLoaded( 'Echo' ) ) {
@@ -66,14 +67,10 @@ class NotifiedUsersTest extends PostRevisionTestCase {
 		/** @var User $user */
 		$user = $data['user'];
 
-		MediaWikiServices::getInstance()->getWatchedItemStore()->addWatchBatchForUser(
+		MediaWikiServices::getInstance()->getWatchlistManager()->addWatch(
 			$user,
-			[
-				$data['topicWorkflow']->getArticleTitle()->getSubjectPage(),
-				$data['topicWorkflow']->getArticleTitle()->getTalkPage()
-			]
+			$data['topicWorkflow']->getArticleTitle()
 		);
-		$user->invalidateCache();
 
 		$events = $data['notificationController']->notifyPostChange( 'flow-post-reply',
 			[
@@ -110,14 +107,10 @@ class NotifiedUsersTest extends PostRevisionTestCase {
 		/** @var User $user */
 		$user = $data['user'];
 
-		MediaWikiServices::getInstance()->getWatchedItemStore()->addWatchBatchForUser(
+		MediaWikiServices::getInstance()->getWatchlistManager()->addWatch(
 			$user,
-			[
-				$data['boardWorkflow']->getArticleTitle()->getSubjectPage(),
-				$data['boardWorkflow']->getArticleTitle()->getTalkPage()
-			]
+			$data['boardWorkflow']->getArticleTitle()
 		);
-		$user->invalidateCache();
 
 		$events = $data['notificationController']->notifyNewTopic( [
 			'board-workflow' => $data['boardWorkflow'],
@@ -141,7 +134,7 @@ class NotifiedUsersTest extends PostRevisionTestCase {
 
 		// convert user objects back into user ids to simplify assertion
 		$users = array_map(
-			function ( $user ) {
+			static function ( $user ) {
 				return $user->getId();
 			},
 			$users

@@ -4,12 +4,14 @@ namespace Flow\Model;
 
 use Flow\Exception\InvalidInputException;
 use Title;
+use WikiMap;
 
 class WikiReference extends Reference {
 	public const TYPE_FILE = 'file';
 	public const TYPE_TEMPLATE = 'template';
 	public const TYPE_CATEGORY = 'category';
 
+	/** @var Title */
 	protected $target;
 
 	/**
@@ -67,8 +69,7 @@ class WikiReference extends Reference {
 	public static function fromStorageRow( $row ) {
 		// TODO: Remove this UUID::create() call when the field is populated
 		// everywhere relevant.
-		$id = ( !isset( $row['ref_id'] ) || $row['ref_id'] === null )
-			? UUID::create() : UUID::create( $row['ref_id'] );
+		$id = isset( $row['ref_id'] ) ? UUID::create( $row['ref_id'] ) : UUID::create();
 		$workflow = UUID::create( $row['ref_src_workflow_id'] );
 		$objectType = $row['ref_src_object_type'];
 		$objectId = UUID::create( $row['ref_src_object_id'] );
@@ -104,7 +105,7 @@ class WikiReference extends Reference {
 	 */
 	public static function makeTitle( $namespace, $title ) {
 		try {
-			return Workflow::getFromTitleCache( wfWikiID(), $namespace, $title );
+			return Workflow::getFromTitleCache( WikiMap::getCurrentWikiId(), $namespace, $title );
 		} catch ( InvalidInputException $e ) {
 			// duplicate Title::makeTitleSafe which returns null on failure,
 			// but only for InvalidInputException

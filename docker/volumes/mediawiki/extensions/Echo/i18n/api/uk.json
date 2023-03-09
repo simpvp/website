@@ -2,9 +2,10 @@
 	"@metadata": {
 		"authors": [
 			"Base",
+			"DDPAT",
+			"Ice bulldog",
 			"Piramidion",
-			"Ата",
-			"DDPAT"
+			"Ата"
 		]
 	},
 	"apihelp-echomarkread-description": "Позначити для поточного користувача сповіщення як прочитані.",
@@ -32,8 +33,11 @@
 	"apihelp-echopushsubscriptions+create-summary": "Реєструвати пуш-підписки для поточного користувача.",
 	"apihelp-echopushsubscriptions+create-param-provider": "Провайдер push-сервісу для якого зареєструвати токен.",
 	"apihelp-echopushsubscriptions+create-param-providertoken": "Токен для реєстрації.",
+	"apihelp-echopushsubscriptions+create-param-topic": "Тема APNS (ідентифікатор пакета додатків) для надсилання сповіщення.",
 	"apihelp-echopushsubscriptions+create-example": "Зареєструвати push-підписку для поточного користувача.",
+	"apihelp-echopushsubscriptions+delete-summary": "Скасувати реєстрацію push-підписок для поточного чи іншого вказаного користувача.",
 	"apihelp-echopushsubscriptions+delete-param-providertoken": "Токен пов'язаний з push-підпискою, реєстрацію якої необхідно скасувати.",
+	"apihelp-echopushsubscriptions+delete-param-centraluserid": "Центральний ідентифікатор користувача асоційований з підпискою для скасування реєстрації.",
 	"apihelp-echopushsubscriptions+delete-example": "Скасувати реєстрацію push-підписки для поточного користувача.",
 	"apihelp-query+notifications-description": "Отримати сповіщення, які чекають поточного користувача.",
 	"apihelp-query+notifications-summary": "Отримувати сповіщення, що очікують на дію поточного користувача.",
@@ -56,8 +60,10 @@
 	"apihelp-query+notifications-param-messageunreadfirst": "Чи показувати спершу непрочитані звістки (використовується лише якщо встановлено groupbysection).",
 	"apihelp-query+notifications-param-titles": "Виводити лише сповіщення для цих сторінок. Щоб отримати сповіщення, не пов'язані з жодною сторінкою, замість назви використайте [].",
 	"apihelp-query+notifications-param-bundle": "Чи показувати пучок сумісних непрочитаних сповіщень згідно з правилами зв'язування типів сповіщень.",
-	"apihelp-query+notifications-example-1": "Список сповіщень",
-	"apihelp-query+notifications-example-2": "Список сповіщень, згрупованих за розділами, із зазначенням кількостей",
+	"apihelp-query+notifications-param-notifiertypes": "Типи сповіщувачів, для яких потрібно повертати сповіщення.",
+	"apihelp-query+notifications-example-1": "Список веб-сповіщень",
+	"apihelp-query+notifications-example-2": "Список веб-сповіщень, згрупованих за розділами, із зазначенням кількостей",
+	"apihelp-query+notifications-example-3": "Список повідомлень ел. поштою",
 	"apihelp-query+unreadnotificationpages-description": "Отримати сторінки, для яких є непрочитані сповіщення для поточного користувача.",
 	"apihelp-query+unreadnotificationpages-summary": "Отримувати сповіщення, щодо яких є непрочитані сповіщення для поточного користувача.",
 	"apihelp-query+unreadnotificationpages-param-grouppages": "Згрупувати сторінки обговорення з їхніми основними сторінками, та згрупувати сповіщення, не пов'язані зі сторінкою, разом зі сторінкою поточного користувача.",
@@ -76,5 +82,7 @@
 	"apiwarn-echo-deprecation-html": "Параметр <kbd>notformat=html</kbd> є застарілим, і невдовзі його буде усунуто. Натомість використовуйте <kbd>notformat=special</kbd>.",
 	"apierror-echo-event-creation-failed": "Не вдалося створити Echo-подію",
 	"apierror-echo-push-token-exists": "Наданий токен вже є в базі даних.",
-	"apierror-echo-push-token-not-found": "Наданий токен не знайдено в базі даних."
+	"apierror-echo-push-token-not-found": "Наданий токен не знайдено в базі даних.",
+	"apierror-echo-push-too-many-subscriptions": "Поточний користувач вже зареєстрував максимально дозволене число push-підписок ($1).",
+	"apierror-echo-push-topic-required": "Поле теми є обов'язковим для цього провайдера."
 }

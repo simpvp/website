@@ -18,6 +18,7 @@ use Flow\Model\Workflow;
 use Flow\Repository\TreeRepository;
 use Language;
 use MediaWiki\MediaWikiServices;
+use ParserOptions;
 use Title;
 use User;
 
@@ -100,11 +101,7 @@ class Controller {
 			return [];
 		}
 
-		if ( isset( $data['extra-data'] ) ) {
-			$extraData = $data['extra-data'];
-		} else {
-			$extraData = [];
-		}
+		$extraData = $data['extra-data'] ?? [];
 
 		$revision = $data['revision'];
 		if ( !$revision instanceof Header ) {
@@ -178,11 +175,7 @@ class Controller {
 			return [];
 		}
 
-		if ( isset( $data['extra-data'] ) ) {
-			$extraData = $data['extra-data'];
-		} else {
-			$extraData = [];
-		}
+		$extraData = $data['extra-data'] ?? [];
 
 		$revision = $data['revision'];
 		if ( !$revision instanceof PostRevision ) {
@@ -241,20 +234,20 @@ class Controller {
 					);
 				}
 
-			break;
+				break;
 			case 'flow-topic-renamed':
 				$previousRevision = $revision->getCollection()->getPrevRevision( $revision );
 				$extraData += [
 					'old-subject' => $this->language->truncateForVisual( $previousRevision->getContent( 'topic-title-plaintext' ), 200 ),
 					'new-subject' => $this->language->truncateForVisual( $revision->getContent( 'topic-title-plaintext' ), 200 ),
 				];
-			break;
+				break;
 			case 'flow-post-edited':
 				$extraData += [
 					'content' => Utils::htmlToPlaintext( $revision->getContent(), 200, $this->language ),
 					'topic-title' => $this->language->truncateForVisual( $topicRevision->getContent( 'topic-title-plaintext' ), 200 ),
 				];
-			break;
+				break;
 		}
 
 		$info = [
@@ -411,7 +404,7 @@ class Controller {
 				'content' => $firstPost
 					? Utils::htmlToPlaintext( $firstPost->getContent(), 200, $this->language )
 					: null,
-				// Force a read from master database since this could be a new page
+				// Force a read from primary database since this could be a new page
 				'target-page' => [
 					$topicWorkflow->getOwnerTitle()->getArticleID( Title::GAID_FOR_UPDATE ),
 					$topicWorkflow->getArticleTitle()->getArticleID( Title::GAID_FOR_UPDATE ),
@@ -539,7 +532,6 @@ class Controller {
 		$extraData['mentioned-users'] = $mentionedUsers;
 		$extraData['target-page'] = $workflow->getArticleTitle()->getArticleID();
 		// don't include topic content again if the notification IS in the title
-		// @phan-suppress-next-line PhanImpossibleTypeComparison
 		$extraData['content'] = $content === $topic ? '' : Utils::htmlToPlaintext( $content->getContent(), 200, $this->language );
 		// lets us differentiate between different revision types
 		$extraData['revision-type'] = $content->getRevisionType();
@@ -617,7 +609,7 @@ class Controller {
 	 *
 	 * Removes duplicates, anonymous users, self-mentions, and mentions of the
 	 * owner of the talk page
-	 * @param User[] $mentions Array of User objects
+	 * @param User[] $mentions
 	 * @param AbstractRevision $revision The Post that is being examined.
 	 * @return array
 	 *          0 => int[] Array of user IDs
@@ -632,7 +624,7 @@ class Controller {
 
 		foreach ( $mentions as $mentionedUser ) {
 			// Don't notify anonymous users
-			if ( $mentionedUser->isAnon() ) {
+			if ( !$mentionedUser->isRegistered() ) {
 				continue;
 			}
 
@@ -655,13 +647,12 @@ class Controller {
 	/**
 	 * Examines a wikitext string and finds users that were mentioned
 	 * @param string $wikitext
-	 * @return User[] Array of User objects
+	 * @return User[]
 	 */
 	protected function getMentionedUsersFromWikitext( $wikitext ) {
 		$title = Title::newMainPage(); // Bogus title used for parser
 
-		$options = new \ParserOptions;
-		$options->setTidy( true );
+		$options = ParserOptions::newFromAnon();
 
 		$output = MediaWikiServices::getInstance()->getParser()
 			->parse( $wikitext, $title, $options );
@@ -676,7 +667,7 @@ class Controller {
 		$users = [];
 		foreach ( $links[NS_USER] as $dbk => $page_id ) {
 			$user = User::newFromName( $dbk );
-			if ( !$user || $user->isAnon() ) {
+			if ( !$user || !$user->isRegistered() ) {
 				continue;
 			}
 
@@ -892,7 +883,7 @@ class Controller {
 
 		$title = Title::makeTitle( NS_TOPIC, ucfirst( $topicId->getAlphadecimal() ) );
 		$pageId = $title->getArticleID();
-		\DeferredUpdates::addCallableUpdate( function () use ( $pageId, $moderated ) {
+		\DeferredUpdates::addCallableUpdate( static function () use ( $pageId, $moderated ) {
 			$eventMapper = new EchoEventMapper();
 			$eventIds = $eventMapper->fetchIdsByPage( $pageId );
 
@@ -916,7 +907,7 @@ class Controller {
 
 		$title = Title::makeTitle( NS_TOPIC, ucfirst( $topicId->getAlphadecimal() ) );
 		$pageId = $title->getArticleID();
-		\DeferredUpdates::addCallableUpdate( function () use ( $pageId, $postId, $moderated ) {
+		\DeferredUpdates::addCallableUpdate( static function () use ( $pageId, $postId, $moderated ) {
 			$eventMapper = new \EchoEventMapper();
 			$moderatedPostIdAlpha = $postId->getAlphadecimal();
 			$eventIds = [];

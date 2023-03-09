@@ -1,14 +1,22 @@
 <?php
 
+namespace Flow\Maintenance;
+
 use Flow\Container;
 use Flow\FlowActions;
 use Flow\Model\UUID;
+use LoggedUpdateMaintenance;
 use MediaWiki\MediaWikiServices;
+use User;
+use WikiMap;
 use Wikimedia\Rdbms\IDatabase;
 
-require_once getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php'
-	: __DIR__ . '/../../../maintenance/Maintenance.php';
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
 
 /**
  * Adjusts edit counts for all existing Flow data.
@@ -75,13 +83,13 @@ class FlowFixEditCount extends LoggedUpdateMaintenance {
 				'rev_id > ' . $dbr->addQuotes( $continue->getBinary() ),
 				'rev_id <= ' . $dbr->addQuotes( $stop->getBinary() ),
 				'rev_user_id > 0',
-				'rev_user_wiki' => wfWikiID(),
+				'rev_user_wiki' => WikiMap::getCurrentWikiId(),
 				'rev_change_type' => $countableActions,
 			],
 			__METHOD__,
 			[
 				'ORDER BY' => 'rev_id ASC',
-				'LIMIT' => $this->mBatchSize,
+				'LIMIT' => $this->getBatchSize(),
 			]
 		);
 

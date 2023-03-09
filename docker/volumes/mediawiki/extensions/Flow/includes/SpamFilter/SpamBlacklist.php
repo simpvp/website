@@ -7,6 +7,7 @@ use ExtensionRegistry;
 use Flow\Model\AbstractRevision;
 use IContextSource;
 use MediaWiki\MediaWikiServices;
+use ParserOptions;
 use Status;
 use Title;
 
@@ -26,17 +27,13 @@ class SpamBlacklist implements SpamFilter {
 		Title $title,
 		Title $ownerTitle
 	) {
-		$spamObj = BaseBlacklist::getInstance( 'spam' );
-		if ( !$spamObj instanceof \SpamBlacklist ) {
-			wfWarn( __METHOD__ . ': Expected a SpamBlacklist instance but instead received: ' . get_class( $spamObj ) );
-			return Status::newFatal( 'something' );
-		}
+		$spamObj = BaseBlacklist::getSpamBlacklist();
 
 		// TODO: This seems to check topic titles.  Should it?  There can't
 		// actually be a link in a topic title, but http://spam.com can still look
 		// spammy even if it's not a working link.
 		$links = $this->getLinks( $newRevision, $title );
-		$matches = $spamObj->filter( $links, $title );
+		$matches = $spamObj->filter( $links, $title, $context->getUser() );
 
 		if ( $matches !== false ) {
 			$status = Status::newFatal( 'spamprotectiontext' );
@@ -57,7 +54,7 @@ class SpamBlacklist implements SpamFilter {
 	 * @return array
 	 */
 	public function getLinks( AbstractRevision $revision, Title $title ) {
-		$options = new \ParserOptions;
+		$options = ParserOptions::newFromAnon();
 		$output = MediaWikiServices::getInstance()->getParser()
 			->parse( $revision->getContentInWikitext(), $title, $options );
 		return array_keys( $output->getExternalLinks() );

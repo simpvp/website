@@ -2,13 +2,14 @@
     $helpers = array(            'l10n' => 'Flow\TemplateHelper::l10n',
             'html' => 'Flow\TemplateHelper::htmlHelper',
             'l10nParse' => 'Flow\TemplateHelper::l10nParse',
+            'l10nParseFlowTermsOfUse' => 'Flow\TemplateHelper::l10nParseFlowTermsOfUse',
             'linkWithReturnTo' => 'Flow\TemplateHelper::linkWithReturnTo',
             'ifAnonymous' => 'Flow\TemplateHelper::ifAnonymous',
             'tooltip' => 'Flow\TemplateHelper::tooltip',
             'progressiveEnhancement' => 'Flow\TemplateHelper::progressiveEnhancement',
 );
     $partials = array('flow_errors' => function ($cx, $in, $sp) {$inary=is_array($in);return ''.$sp.'<div class="flow-error-container">
-'.$sp.''.((LR::ifvar($cx, (isset($cx['sp_vars']['root']['errors']) ? $cx['sp_vars']['root']['errors'] : null), false)) ? '	<div class="flow-errors errorbox">
+'.$sp.''.((LR::ifvar($cx, (isset($cx['sp_vars']['root']['errors']) ? $cx['sp_vars']['root']['errors'] : null), false)) ? '	<div class="flow-errors flow-errorbox mw-message-box mw-message-box-error">
 '.$sp.'		<ul>
 '.$sp.''.LR::sec($cx, (isset($cx['sp_vars']['root']['errors']) ? $cx['sp_vars']['root']['errors'] : null), null, $in, true, function($cx, $in)use($sp){$inary=is_array($in);return '				<li>'.LR::encq($cx, LR::hbch($cx, 'html', array(array((($inary && isset($in['message'])) ? $in['message'] : null)),array()), 'encq', $in)).'</li>
 '.$sp.'';}).'		</ul>
@@ -46,7 +47,7 @@
 '.$sp.'			<div class="flow-form-actions flow-form-collapsible">
 '.$sp.'				<button data-role="submit"
 '.$sp.'					class="mw-ui-button mw-ui-progressive mw-ui-flush-right">'.LR::encq($cx, LR::hbch($cx, 'l10n', array(array('flow-newtopic-save'),array()), 'encq', $in)).'</button>
-'.$sp.'				<small class="flow-terms-of-use plainlinks">'.LR::encq($cx, LR::hbch($cx, 'l10nParse', array(array('flow-terms-of-use-new-topic'),array()), 'encq', $in)).'</small>
+'.$sp.'				<small class="flow-terms-of-use plainlinks">'.LR::encq($cx, LR::hbch($cx, 'l10nParseFlowTermsOfUse', array(array('new-topic'),array()), 'encq', $in)).'</small>
 '.$sp.'			</div>
 '.$sp.'' : '').'	</form>
 '.$sp.'' : '').'';});

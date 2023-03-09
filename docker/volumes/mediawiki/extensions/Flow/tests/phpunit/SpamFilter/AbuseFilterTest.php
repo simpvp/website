@@ -24,14 +24,12 @@ class AbuseFilterTest extends PostRevisionTestCase {
 	/**
 	 * @var AbuseFilter
 	 */
-	protected $spamFilter;
+	private $spamFilter;
 
-	/**
-	 * @var array
-	 */
+	/** @inheritDoc */
 	protected $tablesUsed = [ 'abuse_filter', 'abuse_filter_action', 'abuse_filter_history', 'abuse_filter_log' ];
 
-	protected $filters = [
+	private const FILTERS = [
 		// no CSS screen hijack
 		'(new_wikitext rlike "position\s*:\s*(fixed|absolute)|style\s*=\s*\"[a-z0-9:;\s]*&|z-index\s*:\s*\d|\|([4-9]\d{3}|\d{5,})px")' => 'disallow',
 		'(page_prefixedtitle === "Topic:Tnprd6ksfu1v1nme" & page_prefixedtitle === article_prefixedtext)' => 'disallow',
@@ -92,17 +90,16 @@ class AbuseFilterTest extends PostRevisionTestCase {
 		$oldRevision = $oldRevisionRow ? $this->generateObject( $oldRevisionRow ) : null;
 
 		$context = $this->getMockBuilder( \ContextSource::class )
-				->setMethods( [ 'getUser' ] )
+				->onlyMethods( [ 'getUser' ] )
 				->getMock();
-		$context->expects( $this->any() )
-				->method( 'getUser' )
-				->will( $this->returnValue( User::newFromName( 'UTSysop' ) ) );
+		$context->method( 'getUser' )
+				->willReturn( User::newFromName( 'UTSysop' ) );
 
 		$status = $this->spamFilter->validate( $context, $newRevision, $oldRevision, $title, $ownerTitle );
 		$this->assertEquals( $expected, $status->isOK() );
 	}
 
-	protected function setUp() : void {
+	protected function setUp(): void {
 		parent::setUp();
 
 		global $wgFlowAbuseFilterGroup,
@@ -129,12 +126,12 @@ class AbuseFilterTest extends PostRevisionTestCase {
 			'age' => $wgFlowAbuseFilterEmergencyDisableAge,
 		] );
 
-		foreach ( $this->filters as $pattern => $action ) {
+		foreach ( self::FILTERS as $pattern => $action ) {
 			$this->createFilter( $pattern, $action );
 		}
 	}
 
-	protected function tearDown() : void {
+	protected function tearDown(): void {
 		parent::tearDown();
 		foreach ( $this->tablesUsed as $table ) {
 			$this->db->delete( $table, '*', __METHOD__ );

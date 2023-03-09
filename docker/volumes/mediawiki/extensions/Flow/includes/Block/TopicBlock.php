@@ -3,6 +3,7 @@
 namespace Flow\Block;
 
 use Flow\Container;
+use Flow\Conversion\Utils;
 use Flow\Data\ManagerGroup;
 use Flow\Data\Pager\HistoryPager;
 use Flow\Exception\DataModelException;
@@ -58,6 +59,7 @@ class TopicBlock extends AbstractBlock {
 	 */
 	protected $extraCommitMetadata = [];
 
+	/** @inheritDoc */
 	protected $supportedPostActions = [
 		// Standard editing
 		'edit-post', 'reply',
@@ -71,13 +73,17 @@ class TopicBlock extends AbstractBlock {
 		'undo-edit-post',
 	];
 
+	/** @inheritDoc */
 	protected $supportedGetActions = [
 		'reply', 'view', 'history', 'edit-post', 'edit-title', 'compare-post-revisions', 'single-view',
 		'view-topic', 'view-topic-history', 'view-post', 'view-post-history', 'undo-edit-post',
 		'moderate-topic', 'moderate-post', 'lock-topic',
 	];
 
-	// @Todo - fill in the template names
+	/**
+	 * @var string[]
+	 * @todo Fill in the template names
+	 */
 	protected $templates = [
 		'single-view' => 'single_view',
 		'view' => '',
@@ -116,39 +122,39 @@ class TopicBlock extends AbstractBlock {
 		}
 
 		switch ( $this->action ) {
-		case 'edit-title':
-			$this->validateEditTitle();
-			break;
+			case 'edit-title':
+				$this->validateEditTitle();
+				break;
 
-		case 'reply':
-			$this->validateReply();
-			break;
+			case 'reply':
+				$this->validateReply();
+				break;
 
-		case 'moderate-topic':
-		case 'lock-topic':
-			$this->validateModerateTopic();
-			break;
+			case 'moderate-topic':
+			case 'lock-topic':
+				$this->validateModerateTopic();
+				break;
 
-		case 'moderate-post':
-			$this->validateModeratePost();
-			break;
+			case 'moderate-post':
+				$this->validateModeratePost();
+				break;
 
-		case 'restore-post':
-			// @todo still necessary?
-			$this->validateModeratePost();
-			break;
+			case 'restore-post':
+				// @todo still necessary?
+				$this->validateModeratePost();
+				break;
 
-		case 'undo-edit-post':
-		case 'edit-post':
-			$this->validateEditPost();
-			break;
+			case 'undo-edit-post':
+			case 'edit-post':
+				$this->validateEditPost();
+				break;
 
-		case 'edit-topic-summary':
-			// pseudo-action does not do anything, only includes data in api response
-			break;
+			case 'edit-topic-summary':
+				// pseudo-action does not do anything, only includes data in api response
+				break;
 
-		default:
-			throw new InvalidActionException( "Unexpected action: {$this->action}", 'invalid-action' );
+			default:
+				throw new InvalidActionException( "Unexpected action: {$this->action}", 'invalid-action' );
 		}
 	}
 
@@ -217,8 +223,7 @@ class TopicBlock extends AbstractBlock {
 	}
 
 	protected function validateReply() {
-		// @phan-suppress-next-line PhanTypeArraySuspiciousNullable
-		if ( trim( $this->submitted['content'] ) === '' ) {
+		if ( !isset( $this->submitted['content'] ) || trim( $this->submitted['content'] ) === '' ) {
 			$this->addError( 'content', $this->context->msg( 'flow-error-missing-content' ) );
 			return;
 		}
@@ -415,81 +420,81 @@ class TopicBlock extends AbstractBlock {
 
 	public function commit() {
 		switch ( $this->action ) {
-		case 'edit-topic-summary':
+			case 'edit-topic-summary':
 			// pseudo-action does not do anything, only includes data in api response
-			return [];
+				return [];
 
-		case 'reply':
-		case 'moderate-topic':
-		case 'lock-topic':
-		case 'restore-post':
-		case 'moderate-post':
-		case 'edit-title':
-		case 'undo-edit-post':
-		case 'edit-post':
-			if ( $this->newRevision === null ) {
-				throw new FailCommitException( 'Attempt to save null revision', 'fail-commit' );
-			}
+			case 'reply':
+			case 'moderate-topic':
+			case 'lock-topic':
+			case 'restore-post':
+			case 'moderate-post':
+			case 'edit-title':
+			case 'undo-edit-post':
+			case 'edit-post':
+				if ( $this->newRevision === null ) {
+					throw new FailCommitException( 'Attempt to save null revision', 'fail-commit' );
+				}
 
-			$metadata = $this->extraCommitMetadata + [
-				'workflow' => $this->workflow,
-				'topic-title' => $this->loadTopicTitle(),
-			];
-			if ( !$metadata['topic-title'] instanceof PostRevision ) {
-				// permissions failure, should never have gotten this far
-				throw new PermissionException( 'Not Allowed', 'insufficient-permission' );
-			}
-			if ( $this->newRevision->getPostId()->equals( $metadata['topic-title']->getPostId() ) ) {
-				// When performing actions against the topic-title self::loadTopicTitle
-				// returns the previous revision.
-				$metadata['topic-title'] = $this->newRevision;
-			}
+				$metadata = $this->extraCommitMetadata + [
+					'workflow' => $this->workflow,
+					'topic-title' => $this->loadTopicTitle(),
+				];
+				if ( !$metadata['topic-title'] instanceof PostRevision ) {
+					// permissions failure, should never have gotten this far
+					throw new PermissionException( 'Not Allowed', 'insufficient-permission' );
+				}
+				if ( $this->newRevision->getPostId()->equals( $metadata['topic-title']->getPostId() ) ) {
+					// When performing actions against the topic-title self::loadTopicTitle
+					// returns the previous revision.
+					$metadata['topic-title'] = $this->newRevision;
+				}
 
-			// store data, unless we're dealing with a null-edit (in which case
-			// is storing the same thing not only pointless, it can even be
-			// incorrect, since listeners will run & generate notifications etc)
-			if ( !isset( $this->extraCommitMetadata['null-edit'] ) ) {
-				$this->storage->put( $this->newRevision, $metadata );
-				$this->workflow->updateLastUpdated( $this->newRevision->getRevisionId() );
-				$this->storage->put( $this->workflow, $metadata );
+				// store data, unless we're dealing with a null-edit (in which case
+				// is storing the same thing not only pointless, it can even be
+				// incorrect, since listeners will run & generate notifications etc)
+				if ( !isset( $this->extraCommitMetadata['null-edit'] ) ) {
+					$this->storage->put( $this->newRevision, $metadata );
+					$this->workflow->updateLastUpdated( $this->newRevision->getRevisionId() );
+					$this->storage->put( $this->workflow, $metadata );
 
-				if ( strpos( $this->action, 'moderate-' ) === 0 ) {
-					$topicId = $this->newRevision->getCollection()->getRoot()->getId();
+					if ( strpos( $this->action, 'moderate-' ) === 0 ) {
+						$topicId = $this->newRevision->getCollection()->getRoot()->getId();
 
-					$moderate = $this->newRevision->isModerated()
-						&& ( $this->newRevision->getModerationState() === PostRevision::MODERATED_DELETED
-							|| $this->newRevision->getModerationState() === PostRevision::MODERATED_SUPPRESSED );
+						$moderate = $this->newRevision->isModerated()
+							&& ( $this->newRevision->getModerationState() === PostRevision::MODERATED_DELETED
+								|| $this->newRevision->getModerationState() === PostRevision::MODERATED_SUPPRESSED );
 
-					/** @var Controller $controller */
-					$controller = Container::get( 'controller.notification' );
-					if ( $this->action === 'moderate-topic' ) {
-						$controller->moderateTopicNotifications( $topicId, $moderate );
-					} elseif ( $this->action === 'moderate-post' ) {
-						$postId = $this->newRevision->getPostId();
-						$controller->moderatePostNotifications( $topicId, $postId, $moderate );
+						/** @var Controller $controller */
+						$controller = Container::get( 'controller.notification' );
+						if ( $this->action === 'moderate-topic' ) {
+							$controller->moderateTopicNotifications( $topicId, $moderate );
+						} elseif ( $this->action === 'moderate-post' ) {
+							$postId = $this->newRevision->getPostId();
+							$controller->moderatePostNotifications( $topicId, $postId, $moderate );
+						}
 					}
 				}
-			}
 
-			$newRevision = $this->newRevision;
+				$newRevision = $this->newRevision;
 
-			// If no context was loaded render the post in isolation
-			// @todo make more explicit
-			try {
-				$newRevision->getChildren();
-			} catch ( \MWException $e ) {
-				$newRevision->setChildren( [] );
-			}
+				// If no context was loaded render the post in isolation
+				// @todo make more explicit
+				try {
+					$newRevision->getChildren();
+				} catch ( \MWException $e ) {
+					$newRevision->setChildren( [] );
+				}
 
-			$returnMetadata = [
-				'post-id' => $this->newRevision->getPostId(),
-				'post-revision-id' => $this->newRevision->getRevisionId(),
-			];
+				$returnMetadata = [
+					'post-id' => $this->newRevision->getPostId(),
+					'post-revision-id' => $this->newRevision->getRevisionId(),
+				];
 
-			return $returnMetadata;
+				return $returnMetadata;
 
-		default:
-			throw new InvalidActionException( "Unknown commit action: {$this->action}", 'invalid-action' );
+			default:
+				throw new InvalidActionException( "Unknown commit action: {$this->action}", 'invalid-action' );
 		}
 	}
 
@@ -560,7 +565,7 @@ class TopicBlock extends AbstractBlock {
 			case 'reply':
 			case 'moderate-topic':
 			case 'view-topic':
-			case 'view' && !isset( $options['postId'] ) && !isset( $options['revId'] );
+			case 'view' && !isset( $options['postId'] ) && !isset( $options['revId'] ):
 				// view full topic
 				$output += $this->renderTopicApi( $options );
 				break;
@@ -599,7 +604,11 @@ class TopicBlock extends AbstractBlock {
 		}
 	}
 
-	// @Todo - duplicated logic in other diff view block
+	/**
+	 * @todo Duplicated logic in other diff view block
+	 * @param array $options
+	 * @return array
+	 */
 	protected function renderDiffViewApi( array $options ) {
 		if ( !isset( $options['newRevision'] ) ) {
 			throw new InvalidInputException( 'A revision must be provided for comparison',
@@ -618,7 +627,11 @@ class TopicBlock extends AbstractBlock {
 		];
 	}
 
-	// @Todo - duplicated logic in other single view block
+	/**
+	 * @todo Duplicated logic in other single view block
+	 * @param int $revId
+	 * @return array
+	 */
 	protected function renderSingleViewApi( $revId ) {
 		$row = Container::get( 'query.post.view' )->getSingleViewResult( $revId );
 
@@ -1041,7 +1054,8 @@ class TopicBlock extends AbstractBlock {
 		}
 
 		$title = $this->workflow->getOwnerTitle();
-		$out->setPageTitle( $out->msg( 'flow-topic-first-heading', $title->getPrefixedText() ) );
+		$convertedTitle = Utils::getConvertedTitle( $title );
+		$out->setPageTitle( $out->msg( 'flow-topic-first-heading', $convertedTitle ) );
 		if ( $this->permissions->isAllowed( $topic, 'view' ) ) {
 			if ( $this->action === 'undo-edit-post' ) {
 				$key = 'flow-undo-edit-post';
@@ -1052,10 +1066,10 @@ class TopicBlock extends AbstractBlock {
 				// This must be a rawParam to not expand {{foo}} in the title, it must
 				// not be htmlspecialchar'd because OutputPage::setHtmlTitle handles that.
 				Message::rawParam( $topic->getContent( 'topic-title-plaintext' ) ),
-				$title->getPrefixedText()
+				$convertedTitle
 			) );
 		} else {
-			$out->setHTMLTitle( $title->getPrefixedText() );
+			$out->setHTMLTitle( $convertedTitle );
 		}
 		$out->setSubtitle( '&lt; ' .
 			MediaWikiServices::getInstance()->getLinkRenderer()->makeLink( $title ) );

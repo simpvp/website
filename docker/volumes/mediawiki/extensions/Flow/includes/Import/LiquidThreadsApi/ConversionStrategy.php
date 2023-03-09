@@ -30,7 +30,7 @@ use WikitextContent;
  */
 class ConversionStrategy implements IConversionStrategy {
 	/**
-	 * @var IDatabase Master database for the current wiki
+	 * @var IDatabase Primary database for the current wiki
 	 */
 	protected $dbw;
 
@@ -163,7 +163,8 @@ class ConversionStrategy implements IConversionStrategy {
 	 */
 	protected function removePrefixText( $content ) {
 		$template = wfMessage( 'flow-importer-lqt-converted-archive-template' )->inContentLanguage()->plain();
-		return preg_replace( "{{{$template}\\|[^\\}]+}}", '', $content );
+		$templateSearch = preg_quote( $template, '/' );
+		return preg_replace( '/{{' . $templateSearch . '}\\|[^\\}]+}/', '', $content );
 	}
 
 	/**
@@ -196,7 +197,7 @@ class ConversionStrategy implements IConversionStrategy {
 		$patterns = array_map(
 			// delete any status: enabled or disabled doesn't matter (we're
 			// adding disabled magic word anyway and having it twice is messy)
-			function ( $word ) {
+			static function ( $word ) {
 				return '/{{\\s*#' . preg_quote( $word ) . ':\\s*[01]*\\s*}}/i';
 			},
 			[ 'useliquidthreads' ] + $magicWord->getSynonyms() );

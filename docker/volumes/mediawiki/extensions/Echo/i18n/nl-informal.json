@@ -1,9 +1,9 @@
 {
 	"@metadata": {
 		"authors": [
-			"Siebrand",
 			"Kars",
-			"McDutchie"
+			"McDutchie",
+			"Siebrand"
 		]
 	},
 	"tooltip-pt-notifications-alert": "{{GENDER:|Jouw}} meldingen",

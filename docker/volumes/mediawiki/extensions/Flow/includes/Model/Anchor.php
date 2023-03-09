@@ -138,7 +138,7 @@ class Anchor implements ApiSerializable {
 	/**
 	 * Canonicalizes and returns a message, or null if null was provided
 	 *
-	 * @param Message|string $rawMessage Message object, or text content, or null
+	 * @param Message|string|null $rawMessage Message object, or text content, or null
 	 * @return Message|null
 	 */
 	protected function buildMessage( $rawMessage ) {
@@ -177,7 +177,7 @@ class Anchor implements ApiSerializable {
 	 * Returns the effective title message.  Takes into account defaulting
 	 *  to $this->message if there is none.
 	 *
-	 * @return Message Title message
+	 * @return Message
 	 */
 	protected function getTitleMessage() {
 		if ( $this->titleMessage !== null ) {

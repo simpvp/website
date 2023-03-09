@@ -1,9 +1,20 @@
 <?php
 
+namespace Flow\Maintenance;
+
+use BatchRowIterator;
+use BatchRowUpdate;
+use BatchRowWriter;
+use ExternalStore;
 use Flow\Container;
 use Flow\DbFactory;
 use Flow\Model\UUID;
+use Maintenance;
 use MediaWiki\MediaWikiServices;
+use MWException;
+use RowUpdateGenerator;
+use stdClass;
+use WikiMap;
 use Wikimedia\Rdbms\IDatabase;
 
 $IP = getenv( 'MW_INSTALL_PATH' );
@@ -12,7 +23,6 @@ if ( $IP === false ) {
 }
 
 require_once "$IP/maintenance/Maintenance.php";
-require_once "$IP/includes/utils/RowUpdateGenerator.php";
 
 /**
  * @ingroup Maintenance
@@ -78,7 +88,7 @@ abstract class ExternalStoreMoveCluster extends Maintenance {
 		/** @var IDatabase $dbw */
 		$dbw = $schema['dbw'];
 
-		$iterator = new BatchRowIterator( $dbr, $schema['table'], $schema['pk'], $this->mBatchSize );
+		$iterator = new BatchRowIterator( $dbr, $schema['table'], $schema['pk'], $this->getBatchSize() );
 		$iterator->setFetchColumns( [ $schema['content'], $schema['flags'] ] );
 
 		$clusterConditions = [];
@@ -86,10 +96,12 @@ abstract class ExternalStoreMoveCluster extends Maintenance {
 			$clusterConditions[] = $schema['content'] . $dbr->buildLike( "DB://$cluster/", $dbr->anyString() );
 		}
 		$iterator->addConditions( [
-				$schema['wiki'] => wfWikiID(),
-				$schema['flags'] . $dbr->buildLike( $dbr->anyString(), 'external', $dbr->anyString() ),
-				$dbr->makeList( $clusterConditions, LIST_OR ),
+			$schema['wiki'] => WikiMap::getCurrentWikiId(),
+			$schema['flags'] . $dbr->buildLike( $dbr->anyString(), 'external', $dbr->anyString() ),
+			$dbr->makeList( $clusterConditions, LIST_OR ),
 		] );
+
+		$iterator->setCaller( __METHOD__ );
 
 		$updateGenerator = new ExternalStoreUpdateGenerator( $this, $to, $schema );
 
@@ -133,9 +145,12 @@ abstract class ExternalStoreMoveCluster extends Maintenance {
 			return;
 		}
 
+		$writer = new BatchRowWriter( $dbw, $schema['table'] );
+		$writer->setCaller( __METHOD__ );
+
 		$updater = new BatchRowUpdate(
 			$iterator,
-			new BatchRowWriter( $dbw, $schema['table'] ),
+			$writer,
 			$updateGenerator
 		);
 		$updater->setOutput( [ $this, 'output' ] );
@@ -293,7 +308,7 @@ class FlowExternalStoreMoveCluster extends ExternalStoreMoveCluster {
 
 		return [
 			'dbr' => $dbFactory->getDB( DB_REPLICA ),
-			'dbw' => $dbFactory->getDB( DB_MASTER ),
+			'dbw' => $dbFactory->getDB( DB_PRIMARY ),
 			'table' => 'flow_revision',
 			'pk' => 'rev_id',
 			'content' => 'rev_content',

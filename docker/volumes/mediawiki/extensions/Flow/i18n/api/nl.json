@@ -2,10 +2,10 @@
 	"@metadata": {
 		"authors": [
 			"Mainframe98",
-			"Robin van der Vliet",
-			"Sjoerddebruin",
 			"McDutchie",
-			"Romaine"
+			"Robin van der Vliet",
+			"Romaine",
+			"Sjoerddebruin"
 		]
 	},
 	"apihelp-flow-example-1": "Bewerk de beschrijving van \"[[Talk:Sandbox]]\"",

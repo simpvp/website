@@ -1,16 +1,25 @@
 <?php
 
+namespace Flow\Maintenance;
+
+use Benchmarker;
 use Flow\Model\UUID;
 
-require_once __DIR__ . '/../../../maintenance/benchmarks/Benchmarker.php';
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/includes/Benchmarker.php";
 
 /**
  * @ingroup Benchmark
  */
-class BenchUuidConversions extends \Benchmarker {
+class BenchUuidConversions extends Benchmarker {
 	public function __construct() {
 		parent::__construct();
-		$this->addDescription( 'Benchmark uuid timstamp extraction implementations' );
+		$this->addDescription( 'Benchmark uuid timestamp extraction implementations' );
+		$this->requireExtension( 'Flow' );
 	}
 
 	public function execute() {

@@ -36,7 +36,9 @@
 				this.tocWidget.$element,
 				this.reorderTopicsWidget.$element
 			)
-			.addClass( 'flow-ui-navigationWidget' );
+			.addClass( [
+				'flow-ui-navigationWidget'
+			] );
 	};
 
 	/* Initialization */
@@ -132,7 +134,9 @@
 		// Fix the widget to the top when we scroll down below its original
 		// location
 		this.$element.toggleClass(
-			'flow-ui-navigationWidget-affixed',
+			// mw-sticky-header-element avoids conflicting with the Vector sticky header,
+			// see https://www.mediawiki.org/wiki/Reading/Web/Desktop_Improvements/Features/Sticky_Header/#Integration_notes_for_developers
+			'flow-ui-navigationWidget-affixed mw-sticky-header-element',
 			isScrolledDown
 		);
 		if ( isScrolledDown ) {

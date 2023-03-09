@@ -5,12 +5,22 @@
  * @ingroup Maintenance
  */
 
+namespace Flow\Maintenance;
+
+use BatchRowIterator;
+use Exception;
 use Flow\Container;
 use Flow\WorkflowLoaderFactory;
+use LoggedUpdateMaintenance;
+use MWEchoDbFactory;
+use Title;
 
-require_once getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php'
-	: __DIR__ . '/../../../maintenance/Maintenance.php';
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
 
 /**
  * Maintenance script that update flow-topic-resolved events to point event_page_id to the board instead of the topic.
@@ -30,12 +40,12 @@ class FlowUpdateResolvedNotifTitles extends LoggedUpdateMaintenance {
 	}
 
 	public function getUpdateKey() {
-		return __CLASS__;
+		return 'FlowUpdateResolvedNotifTitles';
 	}
 
 	public function doDBUpdates() {
 		$dbFactory = MWEchoDbFactory::newFromDefault();
-		$dbw = $dbFactory->getEchoDb( DB_MASTER );
+		$dbw = $dbFactory->getEchoDb( DB_PRIMARY );
 		$dbr = $dbFactory->getEchoDb( DB_REPLICA );
 		// We can't join echo_event with page, because those tables can be on different
 		// DB clusters. If we had been able to do that, we could have added
@@ -45,13 +55,14 @@ class FlowUpdateResolvedNotifTitles extends LoggedUpdateMaintenance {
 			$dbr,
 			'echo_event',
 			'event_id',
-			$this->mBatchSize
+			$this->getBatchSize()
 		);
 		$iterator->addConditions( [
 			'event_type' => 'flow-topic-resolved',
 			'event_page_id IS NOT NULL',
 		] );
 		$iterator->setFetchColumns( [ 'event_page_id' ] );
+		$iterator->setCaller( __METHOD__ );
 
 		$storage = Container::get( 'storage.workflow' );
 

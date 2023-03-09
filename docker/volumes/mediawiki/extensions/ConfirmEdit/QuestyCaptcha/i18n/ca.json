@@ -1,9 +1,9 @@
 {
 	"@metadata": {
 		"authors": [
+			"Mguix",
 			"Paucabot",
-			"Toniher",
-			"Mguix"
+			"Toniher"
 		]
 	},
 	"questycaptcha-addurl": "L'edició inclou enllaços externs nous.\nPer a protegir el wiki contra la brossa automàtica, us demanem amablement que responeu la pregunta que apareix a continuació ([[Special:Captcha/help|més informació]]):",

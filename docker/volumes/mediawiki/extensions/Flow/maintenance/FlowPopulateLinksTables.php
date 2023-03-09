@@ -1,12 +1,18 @@
 <?php
 
+namespace Flow\Maintenance;
+
 use Flow\Container;
 use Flow\DbFactory;
 use Flow\Model\UUID;
+use LoggedUpdateMaintenance;
 
-require_once getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php'
-	: __DIR__ . '/../../../maintenance/Maintenance.php';
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
 
 /**
  * Currently iterates through all revisions for debugging purposes, the
@@ -19,6 +25,7 @@ class FlowPopulateLinksTables extends LoggedUpdateMaintenance {
 	public function __construct() {
 		parent::__construct();
 		$this->addDescription( "Populates links tables for wikis deployed before change 110090" );
+		$this->setBatchSize( 300 );
 		$this->requireExtension( 'Flow' );
 	}
 
@@ -37,19 +44,20 @@ class FlowPopulateLinksTables extends LoggedUpdateMaintenance {
 
 	protected function processHeaders( $recorder ) {
 		$storage = Container::get( 'storage.header' );
-		$count = $this->mBatchSize;
+		$batchSize = $this->getBatchSize();
+		$count = $batchSize;
 		$id = '';
 		/** @var DbFactory $dbf */
 		$dbf = Container::get( 'db.factory' );
 		$dbr = $dbf->getDB( DB_REPLICA );
-		while ( $count === $this->mBatchSize ) {
+		while ( $count === $batchSize ) {
 			$count = 0;
 			$res = $dbr->select(
 				[ 'flow_revision' ],
 				[ 'rev_type_id' ],
 				[ 'rev_type' => 'header', 'rev_type_id > ' . $dbr->addQuotes( $id ) ],
 				__METHOD__,
-				[ 'ORDER BY' => 'rev_type_id ASC', 'LIMIT' => $this->mBatchSize ]
+				[ 'ORDER BY' => 'rev_type_id ASC', 'LIMIT' => $batchSize ]
 			);
 			if ( !$res ) {
 				throw new \MWException( 'SQL error in maintenance script ' . __METHOD__ );
@@ -76,10 +84,11 @@ class FlowPopulateLinksTables extends LoggedUpdateMaintenance {
 
 	protected function processPosts( $recorder ) {
 		$storage = Container::get( 'storage.post' );
-		$count = $this->mBatchSize;
+		$batchSize = $this->getBatchSize();
+		$count = $batchSize;
 		$id = '';
 		$dbr = Container::get( 'db.factory' )->getDB( DB_REPLICA );
-		while ( $count === $this->mBatchSize ) {
+		while ( $count === $batchSize ) {
 			$count = 0;
 			$res = $dbr->select(
 				[ 'flow_tree_revision' ],
@@ -89,7 +98,7 @@ class FlowPopulateLinksTables extends LoggedUpdateMaintenance {
 					'tree_rev_id > ' . $dbr->addQuotes( $id ),
 				],
 				__METHOD__,
-				[ 'ORDER BY' => 'tree_rev_id ASC', 'LIMIT' => $this->mBatchSize ]
+				[ 'ORDER BY' => 'tree_rev_id ASC', 'LIMIT' => $batchSize ]
 			);
 			if ( !$res ) {
 				throw new \MWException( 'SQL error in maintenance script ' . __METHOD__ );

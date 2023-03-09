@@ -15,7 +15,7 @@ use Flow\Model\UUID;
  *
  * @group Flow
  */
-class PagerTest extends \MediaWikiTestCase {
+class PagerTest extends \MediaWikiIntegrationTestCase {
 
 	public static function getPageResultsProvider() {
 		$objs = [];
@@ -61,8 +61,8 @@ class PagerTest extends \MediaWikiTestCase {
 				// query options
 				[ 'pager-limit' => 10 ],
 				// filter
-				function ( $found ) {
-					return array_filter( $found, function ( $obj ) {
+				static function ( $found ) {
+					return array_filter( $found, static function ( $obj ) {
 						return $obj->foo !== 'B';
 					} );
 				},
@@ -80,8 +80,8 @@ class PagerTest extends \MediaWikiTestCase {
 				// query options
 				[ 'pager-limit' => 2 ],
 				// query filter
-				function ( $found ) {
-					return array_filter( $found, function ( $obj ) {
+				static function ( $found ) {
+					return array_filter( $found, static function ( $obj ) {
 						return $obj->foo !== 'B' && $obj->foo !== 'C';
 					} );
 				},
@@ -104,8 +104,8 @@ class PagerTest extends \MediaWikiTestCase {
 				// query options
 				[ 'pager-limit' => 3, 'pager-dir' => 'rev', 'pager-offset' => 'K' ],
 				// query filter
-				function ( $found ) {
-					return array_filter( $found, function ( $obj ) {
+				static function ( $found ) {
+					return array_filter( $found, static function ( $obj ) {
 						return in_array( $obj->foo, [ 'I', 'F', 'B', 'A' ] );
 					} );
 				},
@@ -198,8 +198,8 @@ class PagerTest extends \MediaWikiTestCase {
 				// pager options
 				[ 'pager-limit' => 2 ],
 				// filter
-				function ( $found ) {
-					return array_filter( $found, function ( $obj ) {
+				static function ( $found ) {
+					return array_filter( $found, static function ( $obj ) {
 						return $obj->foo > 'B';
 					} );
 				},
@@ -221,8 +221,8 @@ class PagerTest extends \MediaWikiTestCase {
 				],
 				[ 'pager-limit' => 2 ],
 				// filter
-				function ( $found ) {
-					return array_filter( $found, function ( $obj ) {
+				static function ( $found ) {
+					return array_filter( $found, static function ( $obj ) {
 						return $obj->foo !== 'A';
 					} );
 				},
@@ -348,9 +348,8 @@ class PagerTest extends \MediaWikiTestCase {
 	 */
 	public function testOptionsPassedToObjectManagerFind( $message, array $expect, array $options ) {
 		$om = $this->mockObjectManager();
-		$om->expects( $this->any() )
-			->method( 'find' )
-			->with( $this->anything(), $this->callback( function ( $opts ) use ( &$options ) {
+		$om->method( 'find' )
+			->with( $this->anything(), $this->callback( static function ( $opts ) use ( &$options ) {
 				$options = $opts;
 				return true;
 			} ) );
@@ -377,24 +376,20 @@ class PagerTest extends \MediaWikiTestCase {
 	 */
 	protected function mockObjectManager( array $found = [] ) {
 		$index = $this->createMock( Index::class );
-		$index->expects( $this->any() )
-			->method( 'getSort' )
-			->will( $this->returnValue( [ 'something' ] ) );
+		$index->method( 'getSort' )
+			->willReturn( [ 'something' ] );
 		$om = $this->getMockBuilder( ObjectManager::class )
 			->disableOriginalConstructor()
 			->getMock();
-		$om->expects( $this->any() )
-			->method( 'getIndexFor' )
-			->will( $this->returnValue( $index ) );
-		$om->expects( $this->any() )
-			->method( 'serializeOffset' )
-			->will( $this->returnCallback( function ( $obj, $sort ) {
+		$om->method( 'getIndexFor' )
+			->willReturn( $index );
+		$om->method( 'serializeOffset' )
+			->will( $this->returnCallback( static function ( $obj, $sort ) {
 				return 'serialized-' . $obj->foo;
 			} ) );
 
 		if ( $found ) {
-			$om->expects( $this->any() )
-				->method( 'find' )
+			$om->method( 'find' )
 				->will( $this->onConsecutiveCalls(
 					...array_map( [ $this, 'returnValue' ], $found )
 				) );
@@ -453,21 +448,21 @@ class PagerTest extends \MediaWikiTestCase {
 	}
 
 	/**
+	 * @param mixed $return
+	 * @param mixed $offset
+	 * @param string[] $sort
 	 * @return ObjectManager
 	 */
 	protected function mockStorage( $return, $offset, $sort ) {
 		$storage = $this->getMockBuilder( ObjectManager::class )
 			->disableOriginalConstructor()
 			->getMock();
-		$storage->expects( $this->any() )
-			->method( 'find' )
-			->will( $this->returnValue( $return ) );
-		$storage->expects( $this->any() )
-			->method( 'serializeOffset' )
-			->will( $this->returnValue( $offset ) );
-		$storage->expects( $this->any() )
-			->method( 'getIndexFor' )
-			->will( $this->returnValue( $this->mockIndex( $sort ) ) );
+		$storage->method( 'find' )
+			->willReturn( $return );
+		$storage->method( 'serializeOffset' )
+			->willReturn( $offset );
+		$storage->method( 'getIndexFor' )
+			->willReturn( $this->mockIndex( $sort ) );
 		return $storage;
 	}
 
@@ -482,15 +477,15 @@ class PagerTest extends \MediaWikiTestCase {
 	}
 
 	/**
+	 * @param string[] $sort
 	 * @return TopKIndex
 	 */
 	protected function mockIndex( $sort ) {
 		$index = $this->getMockBuilder( TopKIndex::class )
 			->disableOriginalConstructor()
 			->getMock();
-		$index->expects( $this->any() )
-			->method( 'getSort' )
-			->will( $this->returnValue( $sort ) );
+		$index->method( 'getSort' )
+			->willReturn( $sort );
 		return $index;
 	}
 }

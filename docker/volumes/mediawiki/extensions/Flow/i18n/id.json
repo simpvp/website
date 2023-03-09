@@ -4,6 +4,7 @@
 			"Ahdan",
 			"Arief",
 			"Beeyan",
+			"Daud I.F. Argana",
 			"Diki Ananta",
 			"Gombang",
 			"Hidayatsrf",
@@ -13,8 +14,9 @@
 			"Matiia",
 			"Matěj Suchánek",
 			"Sumbukompor",
+			"Veracious",
 			"William Surya Permana",
-			"Daud I.F. Argana"
+			"Rex"
 		]
 	},
 	"enablestructureddiscussions": "Aktifkan Pembicaraan Terstruktur",
@@ -25,6 +27,7 @@
 	"notification-dynamic-actions-flow-topic-unwatch-confirmation": "{{GENDER:$3|Anda}} tidak lagi memantau \"$1\"",
 	"notification-dynamic-actions-flow-topic-unwatch-confirmation-description": "{{GENDER:$3|Anda}} dapat memantau [$2 topik ini] kapan saja.",
 	"flow-desc": "Sistem pembicaraan",
+	"nstab-topic": "Topik",
 	"flow-talk-taken-over-comment": "/* Halaman ini telah dikonversi menjadi forum Pembicaraan Terstruktur */",
 	"log-name-flow": "Catatan aktivitas Pembicaraan Terstruktur",
 	"logentry-delete-flow-delete-post": "$1 {{GENDER:$2|menghapus}} sebuah [$4 kiriman] di \"[[$3|$5]]\" di [[$6]]",
@@ -33,7 +36,7 @@
 	"logentry-delete-flow-restore-post-topic-title-not-visible": "$1 {{GENDER:$2|memulihkan}} sebuah kirimian di suatu topik di [[$3]]",
 	"logentry-suppress-flow-suppress-post": "$1 {{GENDER:$2|memberedel}} sebuah [$4 kiriman] di \"[[$3|$5]]\" di [[$6]]",
 	"logentry-suppress-flow-suppress-post-topic-title-not-visible": "$1 {{GENDER:$2|memberedel}} sebuah kiriman di suatu topik di [[$3]]",
-	"logentry-suppress-flow-restore-post": "$1 {{GENDER:$2|menghapus}} sebuah [$4 kiriman] di \"[[$3|$5]]\" di [[$6]]",
+	"logentry-suppress-flow-restore-post": "$1 {{GENDER:$2|menghapus}} sebuah [$4 posting] mengenai \"[[$3|$5]]\" di [[$6]]",
 	"logentry-suppress-flow-restore-post-topic-title-not-visible": "$1 {{GENDER:$2|menghapus}} sebuah kiriman di suatu topik di [[$3]]",
 	"logentry-delete-flow-delete-topic": "$1 {{GENDER:$2|menghapus}} topik \"[[$3|$5]]\" di [[$6]]",
 	"logentry-delete-flow-delete-topic-topic-title-not-visible": "$1 {{GENDER:$2|menghapus}} sebuah topik di [[$3]]",

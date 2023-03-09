@@ -15,7 +15,7 @@ use Wikimedia\Rdbms\IDatabase;
  *
  * @group Flow
  */
-class ConverterTest extends \MediaWikiTestCase {
+class ConverterTest extends \MediaWikiIntegrationTestCase {
 	public function testConstruction() {
 		$this->assertInstanceOf(
 			Converter::class,
@@ -31,7 +31,7 @@ class ConverterTest extends \MediaWikiTestCase {
 		IConversionStrategy $strategy = null
 	) {
 		return new Converter(
-			$dbw ?: wfGetDB( DB_MASTER ),
+			$dbw ?: wfGetDB( DB_PRIMARY ),
 			$importer ?: $this->getMockBuilder( Importer::class )
 				->disableOriginalConstructor()
 				->getMock(),

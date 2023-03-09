@@ -105,6 +105,7 @@ class ConversionUtilsTest extends FlowTestCase {
 	 * @dataProvider wikitextRoundtripProvider
 	 */
 	public function testwikitextRoundtrip( $message, $expect, Title $title ) {
+		$this->markTestSkipped( 'If Parsoid is enabled an actual network request is run and that is not allowed. See T262443' );
 		// Check for Parsoid
 		try {
 			$html = Utils::convert( 'wikitext', 'html', $expect, $title );
@@ -198,7 +199,7 @@ class ConversionUtilsTest extends FlowTestCase {
 			],
 			[
 				'Parsoid example',
-				'<!DOCTYPE html><html prefix="dc: http://purl.org/dc/terms/ mw: https://mediawiki.org/rdf/"><head prefix="mwr: http://en.wikipedia.org/wiki/Special:Redirect/"><meta charset="utf-8"/><meta property="mw:pageNamespace" content="0"/><meta property="isMainPage" content="true"/><meta property="mw:html:version" content="2.1.0"/><link rel="dc:isVersionOf" href="//en.wikipedia.org/wiki/Main_Page"/><title></title><base href="//en.wikipedia.org/wiki/"/><link rel="stylesheet" href="//en.wikipedia.org/w/load.php?modules=mediawiki.legacy.commonPrint%2Cshared%7Cmediawiki.skinning.content.parsoid%7Cmediawiki.skinning.interface%7Cskins.vector.styles%7Csite.styles%7Cext.cite.style%7Cext.cite.styles%7Cmediawiki.page.gallery.styles&amp;only=styles&amp;skin=vector"/><!--[if lt IE 9]><script src="//en.wikipedia.org/w/load.php?modules=html5shiv&amp;only=scripts&amp;skin=vector&amp;sync=1"></script><script>html5.addElements(\'figure-inline\');</script><![endif]--><meta http-equiv="content-language" content="en"/><meta http-equiv="vary" content="Accept"/></head><body id="mwAA" lang="en" class="mw-content-ltr sitedir-ltr ltr mw-body-content parsoid-body mediawiki mw-parser-output" dir="ltr"><section data-mw-section-id="0" id="mwAQ"><p id="mwAg">Hello <a rel="mw:WikiLink" href="./World" title="World" id="mwAw">world</a></p></section></body></html>',
+				'<!DOCTYPE html><html prefix="dc: http://purl.org/dc/terms/ mw: https://mediawiki.org/rdf/"><head prefix="mwr: http://en.wikipedia.org/wiki/Special:Redirect/"><meta charset="utf-8"/><meta property="mw:pageNamespace" content="0"/><meta property="isMainPage" content="true"/><meta property="mw:html:version" content="2.1.0"/><link rel="dc:isVersionOf" href="//en.wikipedia.org/wiki/Main_Page"/><title></title><base href="//en.wikipedia.org/wiki/"/><link rel="stylesheet" href="//en.wikipedia.org/w/load.php?modules=mediawiki.legacy.commonPrint%2Cshared%7Cmediawiki.skinning.content.parsoid%7Cmediawiki.skinning.interface%7Cskins.vector.styles%7Csite.styles%7Cext.cite.style%7Cext.cite.styles%7Cmediawiki.page.gallery.styles&amp;only=styles&amp;skin=vector"/><meta http-equiv="content-language" content="en"/><meta http-equiv="vary" content="Accept"/></head><body id="mwAA" lang="en" class="mw-content-ltr sitedir-ltr ltr mw-body-content parsoid-body mediawiki mw-parser-output" dir="ltr"><section data-mw-section-id="0" id="mwAQ"><p id="mwAg">Hello <a rel="mw:WikiLink" href="./World" title="World" id="mwAw">world</a></p></section></body></html>',
 				'<body id="mwAA" lang="en" dir="ltr" parsoid-version="' . $parsoidVersion . '" base-url="//en.wikipedia.org/wiki/"><section data-mw-section-id="0" id="mwAQ"><p id="mwAg">Hello <a rel="mw:WikiLink" href="./World" title="World" id="mwAw">world</a></p></section></body>'
 			],
 		];
@@ -232,6 +233,26 @@ class ConversionUtilsTest extends FlowTestCase {
 				'Plain text',
 				'Hello',
 				'<html><head></head><body>Hello</body></html>'
+			],
+			[
+				'Body tag with style tag',
+				'<body base-url="//en.wikipedia.org/wiki/" parsoid-version="0.1.2"><style>.mw-parser-output { background-color: gray; }</style><p>Hello</p></body>',
+				'<html><head><base href="//en.wikipedia.org/wiki/"/></head><body base-url="//en.wikipedia.org/wiki/" parsoid-version="0.1.2"><style>.mw-parser-output { background-color: gray; }</style><p>Hello</p></body></html>'
+			],
+			[
+				'Body tag with style tag and attributes',
+				'<body base-url="//en.wikipedia.org/wiki/" parsoid-version="0.1.2"><style typeof="mw:Extension/templatestyles mw:Transclusion">.mw-parser-output { background-color: gray; }</style><p>Hello</p></body>',
+				'<html><head><base href="//en.wikipedia.org/wiki/"/></head><body base-url="//en.wikipedia.org/wiki/" parsoid-version="0.1.2"><style typeof="mw:Extension/templatestyles mw:Transclusion">.mw-parser-output { background-color: gray; }</style><p>Hello</p></body></html>'
+			],
+			[
+				'Body tag with multiple style tags',
+				'<body base-url="//en.wikipedia.org/wiki/" parsoid-version="0.1.2"><style>.mw-parser-output { background-color: gray; }</style><p>Hello</p><style>.mw-parser-output { background-color: gray; }</style></body>',
+				'<html><head><base href="//en.wikipedia.org/wiki/"/></head><body base-url="//en.wikipedia.org/wiki/" parsoid-version="0.1.2"><style>.mw-parser-output { background-color: gray; }</style><p>Hello</p><style>.mw-parser-output { background-color: gray; }</style></body></html>'
+			],
+			[
+				'Body tag with style tag',
+				'<body base-url="//en.wikipedia.org/wiki/" parsoid-version="0.1.2"><style test=">">.mw-parser-output { background-color: gray; }</style><p>Hello</p></body>',
+				'<html><head><base href="//en.wikipedia.org/wiki/"/></head><body base-url="//en.wikipedia.org/wiki/" parsoid-version="0.1.2"><style test="&gt;">.mw-parser-output { background-color: gray; }</style><p>Hello</p></body></html>'
 			],
 		];
 	}

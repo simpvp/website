@@ -1,13 +1,21 @@
 <?php
 
+namespace Flow\Maintenance;
+
+use BatchRowIterator;
 use Flow\Container;
 use Flow\DbFactory;
 use Flow\Model\AbstractRevision;
 use Flow\Model\UUID;
+use LoggedUpdateMaintenance;
+use WikiMap;
 
-require_once getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php'
-	: __DIR__ . '/../../../maintenance/Maintenance.php';
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
 
 /**
  * Adjusts edit counts for all existing Flow data.
@@ -37,7 +45,7 @@ class FlowAddMissingModerationLogs extends LoggedUpdateMaintenance {
 
 		/** @var DbFactory $dbFactory */
 		$dbFactory = $container['db.factory'];
-		$dbw = $dbFactory->getDB( DB_MASTER );
+		$dbw = $dbFactory->getDB( DB_PRIMARY );
 
 		$storage = $container['storage'];
 
@@ -47,7 +55,7 @@ class FlowAddMissingModerationLogs extends LoggedUpdateMaintenance {
 			$dbw,
 			/* table = */'flow_revision',
 			/* primary key = */'rev_id',
-			$this->mBatchSize
+			$this->getBatchSize()
 		);
 
 		$rowIterator->setFetchColumns( [
@@ -58,7 +66,7 @@ class FlowAddMissingModerationLogs extends LoggedUpdateMaintenance {
 		// Fetch rows that are a moderation action
 		$rowIterator->addConditions( [
 			'rev_change_type' => AbstractRevision::getModerationChangeTypes(),
-			'rev_user_wiki' => wfWikiID(),
+			'rev_user_wiki' => WikiMap::getCurrentWikiId(),
 		] );
 
 		$start = $this->getOption( 'start' );
@@ -72,6 +80,8 @@ class FlowAddMissingModerationLogs extends LoggedUpdateMaintenance {
 		$rowIterator->addConditions( [
 			'rev_id < ' . $dbw->addQuotes( $stopId->getBinary() ),
 		] );
+
+		$rowIterator->setCaller( __METHOD__ );
 
 		$total = $fail = 0;
 		foreach ( $rowIterator as $batch ) {

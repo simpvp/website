@@ -1,17 +1,20 @@
 <?php
 
+namespace Flow\Maintenance;
+
 use Flow\Container;
 use Flow\Data\ObjectManager;
+use Flow\Exception\InvalidInputException;
+use LoggedUpdateMaintenance;
 use MediaWiki\MediaWikiServices;
+use WikiMap;
 
-$installPath = getenv( 'MW_INSTALL_PATH' ) !== false ?
-	getenv( 'MW_INSTALL_PATH' ) :
-	__DIR__ . '/../../..';
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
 
-require_once $installPath . '/maintenance/Maintenance.php';
-// extending these - autoloader not yet wired up at the point these are interpreted
-require_once $installPath . '/includes/utils/BatchRowWriter.php';
-require_once $installPath . '/includes/utils/RowUpdateGenerator.php';
+require_once "$IP/maintenance/Maintenance.php";
 
 /**
  * Populates ref_id in flow_wiki_ref & flow_ext_ref.
@@ -30,7 +33,7 @@ class FlowPopulateRefId extends LoggedUpdateMaintenance {
 	}
 
 	protected function getUpdateKey() {
-		return __CLASS__;
+		return 'FlowPopulateRefId';
 	}
 
 	protected function doDBUpdates() {
@@ -50,7 +53,7 @@ class FlowPopulateRefId extends LoggedUpdateMaintenance {
 
 	/**
 	 * @param ObjectManager $storage
-	 * @throws \Flow\Exception\InvalidInputException
+	 * @throws InvalidInputException
 	 */
 	protected function update( ObjectManager $storage ) {
 		global $wgFlowCluster;
@@ -60,7 +63,10 @@ class FlowPopulateRefId extends LoggedUpdateMaintenance {
 		$lbFactory = MediaWikiServices::getInstance()->getDBLoadBalancerFactory();
 
 		while ( true ) {
-			$references = (array)$storage->find( [ 'ref_id' => null, 'ref_src_wiki' => wfWikiID() ], [ 'limit' => $this->mBatchSize ] );
+			$references = (array)$storage->find(
+				[ 'ref_id' => null, 'ref_src_wiki' => WikiMap::getCurrentWikiId() ],
+				[ 'limit' => $this->getBatchSize() ]
+			);
 			if ( !$references ) {
 				break;
 			}

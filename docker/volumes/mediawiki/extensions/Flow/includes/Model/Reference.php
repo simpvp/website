@@ -24,7 +24,7 @@ abstract class Reference {
 	protected $srcTitle;
 
 	/**
-	 * @var String
+	 * @var string
 	 */
 	protected $objectType;
 
@@ -43,6 +43,7 @@ abstract class Reference {
 	 */
 	protected $wikiId;
 
+	/** @var string[] */
 	protected $validTypes = [ self::TYPE_LINK ];
 
 	/**

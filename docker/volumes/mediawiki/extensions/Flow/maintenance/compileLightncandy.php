@@ -1,10 +1,16 @@
 <?php
 
-use Flow\TemplateHelper;
+namespace Flow\Maintenance;
 
-require_once getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php'
-	: __DIR__ . '/../../../maintenance/Maintenance.php';
+use Flow\TemplateHelper;
+use Maintenance;
+
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
 
 /**
  * Populate the *_user_ip fields within flow.  This only updates
@@ -64,5 +70,5 @@ class CompileLightncandy extends Maintenance {
 	}
 }
 
-$maintClass = CompileLightncandy::class; // Tells it to run the class
+$maintClass = CompileLightncandy::class;
 require_once RUN_MAINTENANCE_IF_MAIN;

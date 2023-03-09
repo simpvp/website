@@ -20,7 +20,7 @@ class UUIDTest extends FlowTestCase {
 		// s:16:"s3xyjucl93jtq2ci"
 		$broken = preg_replace_callback(
 			'/(s:16:")([a-z0-9])/',
-			function ( $matches ) {
+			static function ( $matches ) {
 				return $matches[1] . strtoupper( $matches[2] );
 			},
 			$serialized
@@ -171,7 +171,6 @@ class UUIDTest extends FlowTestCase {
 
 	/**
 	 * @dataProvider uuidProvider
-	 * @param UUID $uuid
 	 */
 	public function testAlphadecimalRoundtrip( UUID $uuid ) {
 		$expect = $uuid->getAlphadecimal();
@@ -182,7 +181,6 @@ class UUIDTest extends FlowTestCase {
 
 	/**
 	 * @dataProvider uuidProvider
-	 * @param UUID $uuid
 	 */
 	public function testHexRoundtrip( UUID $uuid ) {
 		$expect = $uuid->getHex();
@@ -193,7 +191,6 @@ class UUIDTest extends FlowTestCase {
 
 	/**
 	 * @dataProvider uuidProvider
-	 * @param UUID $uuid
 	 */
 	public function testBinaryRoundtrip( UUID $uuid ) {
 		$expect = $uuid->getBinary();

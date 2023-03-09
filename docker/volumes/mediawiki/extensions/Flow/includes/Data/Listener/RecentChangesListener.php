@@ -11,6 +11,7 @@ use Flow\Model\Workflow;
 use Flow\Repository\UserNameBatch;
 use MediaWiki\MediaWikiServices;
 use RecentChange;
+use WikiMap;
 
 /**
  * Inserts mw recentchange rows for flow AbstractRevision instances.
@@ -89,7 +90,7 @@ class RecentChangesListener extends AbstractListener {
 			'rc_namespace' => $title->getNamespace(),
 			'rc_title' => $title->getDBkey(),
 			'rc_user' => $row['rev_user_id'],
-			'rc_user_text' => $this->usernames->get( wfWikiID(), $row['rev_user_id'], $row['rev_user_ip'] ),
+			'rc_user_text' => $this->usernames->get( WikiMap::getCurrentWikiId(), $row['rev_user_id'], $row['rev_user_ip'] ),
 			'rc_type' => RC_FLOW,
 			'rc_source' => self::SRC_FLOW,
 			'rc_minor' => 0,
@@ -123,9 +124,9 @@ class RecentChangesListener extends AbstractListener {
 		$rc->save( RecentChange::SEND_NONE );
 		$feeds = $wgRCFeeds;
 		// Override the IRC formatter with our own formatter
-		foreach ( array_keys( $feeds ) as $name ) {
-			$feeds[$name]['original_formatter'] = $feeds[$name]['formatter'];
-			$feeds[$name]['formatter'] = $this->ircFormatter;
+		foreach ( $feeds as $name => &$feed ) {
+			$feed['original_formatter'] = $feed['formatter'];
+			$feed['formatter'] = $this->ircFormatter;
 		}
 		// pre-load the irc formatter which will be triggered via hook
 		$this->ircFormatter->associate( $rc, [

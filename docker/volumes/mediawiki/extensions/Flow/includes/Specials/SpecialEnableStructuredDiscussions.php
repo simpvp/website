@@ -28,7 +28,7 @@ class SpecialEnableStructuredDiscussions extends FormSpecialPage {
 	protected $occupationController;
 
 	/**
-	 * @var string $page Full page name that was converted to a board
+	 * @var string Full page name that was converted to a board
 	 */
 	protected $page = '';
 
@@ -79,7 +79,7 @@ class SpecialEnableStructuredDiscussions extends FormSpecialPage {
 	 * Archives any pre-existing wikitext talk page.
 	 *
 	 * @param array $data Form data
-	 * @return Status Status indicating result
+	 * @return Status
 	 */
 	public function onSubmit( array $data ) {
 		$page = $data['page'];
@@ -105,7 +105,7 @@ class SpecialEnableStructuredDiscussions extends FormSpecialPage {
 			$logger = Container::get( 'default_logger' );
 
 			$converter = new Converter(
-				wfGetDB( DB_MASTER ),
+				wfGetDB( DB_PRIMARY ),
 				Container::get( 'importer' ),
 				$logger,
 				$this->getUser(),

@@ -1,16 +1,22 @@
 <?php
 
+namespace Flow\Maintenance;
+
 use Flow\Container;
 use Flow\DbFactory;
+use LoggedUpdateMaintenance;
 use Wikimedia\Rdbms\IDatabase;
 
-require_once getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php'
-	: __DIR__ . '/../../../maintenance/Maintenance.php';
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
 
 /**
- * Populate the *_user_ip fields within flow.  This only updates
- * the database and not the cache.  The model loading layer handles
+ * Populate the *_user_ip fields within flow. This only updates
+ * the database and not the cache. The model loading layer handles
  * cached old values.
  *
  * @ingroup Maintenance
@@ -26,16 +32,17 @@ class FlowSetUserIp extends LoggedUpdateMaintenance {
 	public function __construct() {
 		parent::__construct();
 
+		$this->setBatchSize( 300 );
 		$this->requireExtension( 'Flow' );
 	}
 
 	protected function doDBUpdates() {
 		/** @var DbFactory $dbf */
 		$dbf = Container::get( 'db.factory' );
-		$dbw = $dbf->getDB( DB_MASTER );
+		$dbw = $dbf->getDB( DB_PRIMARY );
 		$hasRun = false;
 
-		$runUpdate = function ( $callback ) use ( $dbf, $dbw, &$hasRun ) {
+		$runUpdate = static function ( $callback ) use ( $dbf, $dbw, &$hasRun ) {
 			$hasRun = true;
 			$continue = "\0";
 			do {
@@ -59,10 +66,6 @@ class FlowSetUserIp extends LoggedUpdateMaintenance {
 			$runUpdate( [ $this, 'updateRevision' ] );
 		}
 
-		if ( $hasRun ) {
-			$dbw->sourceFile( __DIR__ . '/../db_patches/patch-remove_usernames_2.sql' );
-		}
-
 		return true;
 	}
 
@@ -83,7 +86,7 @@ class FlowSetUserIp extends LoggedUpdateMaintenance {
 				'workflow_user_id = 0'
 			],
 			__METHOD__,
-			/* options */[ 'LIMIT' => $this->mBatchSize, 'ORDER BY' => 'workflow_id' ]
+			/* options */[ 'LIMIT' => $this->getBatchSize(), 'ORDER BY' => 'workflow_id' ]
 		);
 
 		$continue = null;
@@ -113,7 +116,7 @@ class FlowSetUserIp extends LoggedUpdateMaintenance {
 				'tree_orig_user_id = 0',
 			],
 			__METHOD__,
-			/* options */[ 'LIMIT' => $this->mBatchSize, 'ORDER BY' => 'tree_rev_id' ]
+			/* options */[ 'LIMIT' => $this->getBatchSize(), 'ORDER BY' => 'tree_rev_id' ]
 		);
 
 		$continue = null;
@@ -149,7 +152,7 @@ class FlowSetUserIp extends LoggedUpdateMaintenance {
 				),
 			],
 			__METHOD__,
-			/* options */[ 'LIMIT' => $this->mBatchSize, 'ORDER BY' => 'rev_id' ]
+			/* options */[ 'LIMIT' => $this->getBatchSize(), 'ORDER BY' => 'rev_id' ]
 		);
 
 		$continue = null;
@@ -189,5 +192,5 @@ class FlowSetUserIp extends LoggedUpdateMaintenance {
 	}
 }
 
-$maintClass = FlowSetUserIp::class; // Tells it to run the class
+$maintClass = FlowSetUserIp::class;
 require_once RUN_MAINTENANCE_IF_MAIN;

@@ -4,8 +4,8 @@ namespace Flow\Data\Listener;
 
 use Flow\Model\Workflow;
 use Flow\OccupationController;
+use MediaWiki\MediaWikiServices;
 use SplQueue;
-use WikiPage;
 
 class TopicPageCreationListener extends AbstractListener {
 	/** @var OccupationController */
@@ -37,9 +37,9 @@ class TopicPageCreationListener extends AbstractListener {
 
 		// make sure this Topic:xyz page exists
 		$controller = $this->occupationController;
-		$this->deferredQueue->push( function () use ( $controller, $object ) {
+		$this->deferredQueue->push( static function () use ( $controller, $object ) {
 			$controller->ensureFlowRevision(
-				WikiPage::factory( $object->getArticleTitle() ),
+				MediaWikiServices::getInstance()->getWikiPageFactory()->newFromTitle( $object->getArticleTitle() ),
 				$object
 			);
 		} );

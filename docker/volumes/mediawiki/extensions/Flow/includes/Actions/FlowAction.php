@@ -8,6 +8,7 @@ use ErrorPageError;
 use Flow\Container;
 use Flow\Data\ManagerGroup;
 use Flow\Exception\FlowException;
+use Flow\Exception\InvalidDataException;
 use Flow\Model\UUID;
 use Flow\Model\Workflow;
 use Flow\View;
@@ -104,6 +105,15 @@ class FlowAction extends Action {
 			}
 
 			$view->show( $loader, $action );
+		} catch ( InvalidDataException $e ) {
+			// FIXME: This isn't a real solution to the problem.
+			// Pretend that we aren't generating 500 errors here by swallowing the
+			// error, removing some log spam and avoiding pings to SRE and others
+			// looking at the production logs.
+			// The actual fix would be to prevent users from getting in a stuck
+			// position with their user talk pages.
+			$output->setPageTitle( $e->getPageTitle() );
+			$output->addHTML( $e->getHTML() );
 		} catch ( FlowException $e ) {
 			$e->setOutput( $output );
 			throw $e;
@@ -121,7 +131,8 @@ class FlowAction extends Action {
 	 * @return string URL to redirect to or blank string for no redirect
 	 */
 	protected function getRedirectUrl( WebRequest $request, Title $title ) {
-		$workflowId = UUID::create( strtolower( $request->getVal( 'workflow' ) ) ?: null );
+		$workflow = $request->getVal( 'workflow', null );
+		$workflowId = $workflow !== null ? UUID::create( strtolower( $workflow ) ) : null;
 		if ( !$workflowId ) {
 			return '';
 		}

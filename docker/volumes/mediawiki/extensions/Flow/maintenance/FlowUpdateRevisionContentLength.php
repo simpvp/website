@@ -1,12 +1,23 @@
 <?php
 
+namespace Flow\Maintenance;
+
+use BatchRowIterator;
 use Flow\Container;
+use Flow\Data\ManagerGroup;
+use Flow\DbFactory;
 use Flow\Model\AbstractRevision;
 use Flow\Model\UUID;
+use LoggedUpdateMaintenance;
+use ReflectionProperty;
+use WikiMap;
 
-require_once getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php'
-	: __DIR__ . '/../../../maintenance/Maintenance.php';
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
 
 /**
  * @ingroup Maintenance
@@ -26,12 +37,12 @@ class FlowUpdateRevisionContentLength extends LoggedUpdateMaintenance {
 	];
 
 	/**
-	 * @var Flow\DbFactory
+	 * @var DbFactory
 	 */
 	protected $dbFactory;
 
 	/**
-	 * @var Flow\Data\ManagerGroup
+	 * @var ManagerGroup
 	 */
 	protected $storage;
 
@@ -48,11 +59,12 @@ class FlowUpdateRevisionContentLength extends LoggedUpdateMaintenance {
 	public function __construct() {
 		parent::__construct();
 		$this->addDescription( "Updates content length for revisions with unset content length." );
+		$this->setBatchSize( 300 );
 		$this->requireExtension( 'Flow' );
 	}
 
 	public function getUpdateKey() {
-		return __CLASS__ . ':version2';
+		return 'FlowUpdateRevisionContentLength:version2';
 	}
 
 	public function doDBUpdates() {
@@ -73,20 +85,22 @@ class FlowUpdateRevisionContentLength extends LoggedUpdateMaintenance {
 		);
 		$this->previousContentLengthProperty->setAccessible( true );
 
-		$dbw = $this->dbFactory->getDB( DB_MASTER );
+		$dbw = $this->dbFactory->getDB( DB_PRIMARY );
 		// Walk through the flow_revision table
 		$it = new BatchRowIterator(
 			$dbw,
 			/* table = */'flow_revision',
 			/* primary key = */'rev_id',
-			$this->mBatchSize
+			$this->getBatchSize()
 		);
 		// Only fetch rows created by users from the current wiki.
 		$it->addConditions( [
-			'rev_user_wiki' => wfWikiID(),
+			'rev_user_wiki' => WikiMap::getCurrentWikiId(),
 		] );
 		// We only need the id and type field
 		$it->setFetchColumns( [ 'rev_id', 'rev_type' ] );
+
+		$it->setCaller( __METHOD__ );
 
 		$total = $fail = 0;
 		foreach ( $it as $batch ) {

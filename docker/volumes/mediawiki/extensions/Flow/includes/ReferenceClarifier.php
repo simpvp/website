@@ -8,9 +8,14 @@ use Flow\Model\Reference;
 use Flow\Model\UUID;
 use Flow\Model\WikiReference;
 use Title;
+use WikiMap;
 
 class ReferenceClarifier {
-	protected $storage, $urlGenerator;
+	/** @var ManagerGroup */
+	protected $storage;
+	/** @var UrlGenerator */
+	protected $urlGenerator;
+	/** @var WikiReference[][][] */
 	protected $referenceCache;
 
 	public function __construct( ManagerGroup $storage, UrlGenerator $urlGenerator ) {
@@ -105,7 +110,7 @@ class ReferenceClarifier {
 			$res = $this->storage->find(
 				$refType,
 				[
-					'ref_src_wiki' => wfWikiID(),
+					'ref_src_wiki' => WikiMap::getCurrentWikiId(),
 					'ref_src_namespace' => $from->getNamespace(),
 					'ref_src_title' => $from->getDBkey(),
 				]

@@ -45,13 +45,13 @@ class BlockFactoryTest extends FlowTestCase {
 		$workflow = $this->mockWorkflow( $workflowType );
 
 		$blocks = $factory->createBlocks( $workflow );
-		$this->assertEquals( count( $blocks ), count( $expectedResults ) );
+		$this->assertCount( count( $blocks ), $expectedResults );
 
 		$results = [];
 		foreach ( $blocks as $obj ) {
 			$results[] = get_class( $obj );
 		}
-		$this->assertEquals( $results, $expectedResults );
+		$this->assertEquals( $expectedResults, $results );
 	}
 
 	public function testCreateBlocksWithInvalidInputException() {
@@ -77,9 +77,8 @@ class BlockFactoryTest extends FlowTestCase {
 		$workflow = $this->getMockBuilder( \Flow\Model\Workflow::class )
 			->disableOriginalConstructor()
 			->getMock();
-		$workflow->expects( $this->any() )
-			->method( 'getType' )
-			->will( $this->returnValue( $type ) );
+		$workflow->method( 'getType' )
+			->willReturn( $type );
 
 		return $workflow;
 	}

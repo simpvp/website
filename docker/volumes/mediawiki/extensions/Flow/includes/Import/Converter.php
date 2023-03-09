@@ -2,12 +2,10 @@
 
 namespace Flow\Import;
 
-use ActorMigration;
 use Flow\Exception\FlowException;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\SlotRecord;
-use MovePage;
 use MWExceptionHandler;
 use Psr\Log\LoggerInterface;
 use Title;
@@ -35,7 +33,7 @@ use WikitextContent;
  */
 class Converter {
 	/**
-	 * @var IDatabase Master database of the current wiki. Required
+	 * @var IDatabase Primary database of the current wiki. Required
 	 *  to lookup past page moves.
 	 */
 	protected $dbw;
@@ -65,7 +63,7 @@ class Converter {
 	protected $strategy;
 
 	/**
-	 * @param IDatabase $dbw Master wiki database to read from
+	 * @param IDatabase $dbw Primary wiki database to read from
 	 * @param Importer $importer
 	 * @param LoggerInterface $logger
 	 * @param User $user User for moves and edits related to the conversion process
@@ -215,30 +213,25 @@ class Converter {
 	 * @return Title|null
 	 */
 	protected function getPageMovedFrom( Title $title ) {
-		$actorQuery = ActorMigration::newMigration()->getJoin( 'log_user' );
 		$row = $this->dbw->selectRow(
-			[ 'logging', 'page' ] + $actorQuery['tables'],
-			[ 'log_namespace', 'log_title', 'log_user' => $actorQuery['fields']['log_user'] ],
+			[ 'logging', 'page' ],
+			[ 'log_namespace', 'log_title' ],
 			[
 				'page_namespace' => $title->getNamespace(),
 				'page_title' => $title->getDBkey(),
 				'log_type' => 'move',
+				'log_actor' => $this->user->getActorId()
 			],
 			__METHOD__,
 			[
 				'LIMIT' => 1,
 				'ORDER BY' => 'log_timestamp DESC'
 			],
-			[ 'page' => [ 'JOIN', 'log_page = page_id' ] ] + $actorQuery['joins']
+			[ 'page' => [ 'JOIN', 'log_page = page_id' ] ]
 		);
 
-		// The page has never been moved
+		// The page has never been moved or the most recent move was not by our user
 		if ( !$row ) {
-			return null;
-		}
-
-		// The most recent move was not by our user
-		if ( $row->log_user != $this->user->getId() ) {
 			return null;
 		}
 
@@ -255,7 +248,10 @@ class Converter {
 	 * @throws ImportException on failed import
 	 */
 	protected function movePage( Title $from, Title $to ) {
-		$mp = new MovePage( $from, $to );
+		$mp = MediaWikiServices::getInstance()
+			->getMovePageFactory()
+			->newMovePage( $from, $to );
+
 		$valid = $mp->isValidMove();
 		if ( !$valid->isOK() ) {
 			$this->logger->error( $valid->getMessage()->text() );
@@ -283,8 +279,8 @@ class Converter {
 	 * @throws ImportException
 	 */
 	protected function createArchiveCleanupRevision( Title $title, Title $archiveTitle ) {
-		$page = WikiPage::factory( $archiveTitle );
-		// doEditContent will do this anyway, but we need to now for the revision.
+		$page = MediaWikiServices::getInstance()->getWikiPageFactory()->newFromTitle( $archiveTitle );
+		// doUserEditContent will do this anyway, but we need to now for the revision.
 		$page->loadPageData( WikiPage::READ_LATEST );
 		$revision = $page->getRevisionRecord();
 		if ( $revision === null ) {
@@ -302,12 +298,11 @@ class Converter {
 			return;
 		}
 
-		$status = $page->doEditContent(
+		$status = $page->doUserEditContent(
 			$newContent,
+			$this->user,
 			$this->strategy->getCleanupComment( $title, $archiveTitle ),
-			EDIT_FORCE_BOT | EDIT_SUPPRESS_RC,
-			false,
-			$this->user
+			EDIT_FORCE_BOT | EDIT_SUPPRESS_RC
 		);
 
 		if ( !$status->isGood() ) {

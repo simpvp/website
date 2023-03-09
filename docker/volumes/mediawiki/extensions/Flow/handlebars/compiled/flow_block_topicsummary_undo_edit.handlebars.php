@@ -1,11 +1,11 @@
 <?php use \LightnCandy\SafeString as SafeString;use \LightnCandy\Runtime as LR;return function ($in = null, $options = null) {
     $helpers = array(            'l10n' => 'Flow\TemplateHelper::l10n',
             'html' => 'Flow\TemplateHelper::htmlHelper',
-            'l10nParse' => 'Flow\TemplateHelper::l10nParse',
+            'l10nParseFlowTermsOfUse' => 'Flow\TemplateHelper::l10nParseFlowTermsOfUse',
             'diffUndo' => 'Flow\TemplateHelper::diffUndo',
 );
     $partials = array('flow_errors' => function ($cx, $in, $sp) {$inary=is_array($in);return ''.$sp.'<div class="flow-error-container">
-'.$sp.''.((LR::ifvar($cx, (isset($cx['sp_vars']['root']['errors']) ? $cx['sp_vars']['root']['errors'] : null), false)) ? '	<div class="flow-errors errorbox">
+'.$sp.''.((LR::ifvar($cx, (isset($cx['sp_vars']['root']['errors']) ? $cx['sp_vars']['root']['errors'] : null), false)) ? '	<div class="flow-errors flow-errorbox mw-message-box mw-message-box-error">
 '.$sp.'		<ul>
 '.$sp.''.LR::sec($cx, (isset($cx['sp_vars']['root']['errors']) ? $cx['sp_vars']['root']['errors'] : null), null, $in, true, function($cx, $in)use($sp){$inary=is_array($in);return '				<li>'.LR::encq($cx, LR::hbch($cx, 'html', array(array((($inary && isset($in['message'])) ? $in['message'] : null)),array()), 'encq', $in)).'</li>
 '.$sp.'';}).'		</ul>
@@ -60,7 +60,7 @@
 
 		<div class="flow-form-actions flow-form-collapsible">
 			<button class="mw-ui-button mw-ui-progressive">'.LR::encq($cx, LR::hbch($cx, 'l10n', array(array('flow-topic-action-summarize-topic'),array()), 'encq', $in)).'</button>
-			<small class="flow-terms-of-use plainlinks">'.LR::encq($cx, LR::hbch($cx, 'l10nParse', array(array('flow-terms-of-use-summarize'),array()), 'encq', $in)).'
+			<small class="flow-terms-of-use plainlinks">'.LR::encq($cx, LR::hbch($cx, 'l10nParseFlowTermsOfUse', array(array('summarize'),array()), 'encq', $in)).'
 			</small>
 		</div>
 	</form>

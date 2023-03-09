@@ -8,6 +8,7 @@ use Flow\Model\Header;
 use Flow\Model\Workflow;
 use Title;
 use User;
+use WikiMap;
 use Wikimedia\Rdbms\IDatabase;
 
 class BoardMover {
@@ -41,11 +42,11 @@ class BoardMover {
 	 * Starts a transaction on the Flow database.
 	 */
 	protected function begin() {
-		// All reads must go through master to help ensure consistency
-		$this->dbFactory->forceMaster();
+		// All reads must go through primary to help ensure consistency
+		$this->dbFactory->forcePrimary();
 
 		// Open a transaction, this will be closed from self::commit.
-		$this->dbw = $this->dbFactory->getDB( DB_MASTER );
+		$this->dbw = $this->dbFactory->getDB( DB_PRIMARY );
 		$this->dbw->startAtomic( __CLASS__ );
 	}
 
@@ -70,7 +71,7 @@ class BoardMover {
 		// revisit this.
 		/** @var Workflow[] $found */
 		$found = $this->storage->find( 'Workflow', [
-			'workflow_wiki' => wfWikiID(),
+			'workflow_wiki' => WikiMap::getCurrentWikiId(),
 			'workflow_page_id' => $oldPageId,
 		] );
 		if ( !$found ) {

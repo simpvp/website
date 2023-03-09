@@ -14,10 +14,12 @@ use Wikimedia\Rdbms\IDatabase;
  */
 class TreeRepositoryTest extends FlowTestCase {
 
-	protected $ancestor;
-	protected $descendant;
+	/** @var UUID */
+	private $ancestor;
+	/** @var UUID */
+	private $descendant;
 
-	protected function setUp() : void {
+	protected function setUp(): void {
 		parent::setUp();
 		$this->ancestor = UUID::create( false );
 		$this->descendant = UUID::create( false );
@@ -33,17 +35,14 @@ class TreeRepositoryTest extends FlowTestCase {
 		$dbFactory = $this->getMockBuilder( \Flow\DbFactory::class )
 			->disableOriginalConstructor()
 			->getMock();
-		$dbFactory->expects( $this->any() )
-			->method( 'getDB' )
+		$dbFactory->method( 'getDB' )
 			->willReturn( $this->mockDb( $dbResult ) );
 		return $dbFactory;
 	}
 
 	protected function mockDb( $dbResult ) {
 		$db = $this->createMock( IDatabase::class );
-		$db->method( 'insert' )
-			->willReturn( $dbResult );
-		$db->method( 'insertSelect' )
+		$db->method( $this->logicalOr( 'insert', 'insertSelect' ) )
 			->willReturn( $dbResult );
 		$db->method( 'addQuotes' )
 			->willReturn( '' );

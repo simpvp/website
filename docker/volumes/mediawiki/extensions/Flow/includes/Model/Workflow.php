@@ -12,6 +12,7 @@ use MWTimestamp;
 use RequestContext;
 use Title;
 use User;
+use WikiMap;
 
 class Workflow {
 
@@ -93,7 +94,7 @@ class Workflow {
 		$obj->pageId = (int)$row['workflow_page_id'];
 		$obj->namespace = (int)$row['workflow_namespace'];
 		$obj->titleText = $row['workflow_title_text'];
-		$obj->lastUpdated = $row['workflow_last_update_timestamp'];
+		$obj->lastUpdated = wfTimestamp( TS_MW, $row['workflow_last_update_timestamp'] );
 
 		return $obj;
 	}
@@ -123,6 +124,9 @@ class Workflow {
 				throw new FailCommitException( 'No page for workflow: ' . serialize( $obj ) );
 			}
 		}
+		$dbr = MediaWikiServices::getInstance()
+			->getDBLoadBalancer()
+			->getConnection( DB_REPLICA );
 
 		return [
 			'workflow_id' => $obj->id->getAlphadecimal(),
@@ -132,7 +136,7 @@ class Workflow {
 			'workflow_namespace' => $obj->namespace,
 			'workflow_title_text' => $obj->titleText,
 			'workflow_lock_state' => 0, // unused
-			'workflow_last_update_timestamp' => $obj->lastUpdated,
+			'workflow_last_update_timestamp' => $dbr->timestamp( $obj->lastUpdated ),
 			// not used, but set it to empty string so it doesn't fail in strict mode
 			'workflow_name' => '',
 		];
@@ -150,7 +154,7 @@ class Workflow {
 			throw new DataModelException( 'Invalid workflow type provided: ' . $type, 'process-data' );
 		}
 		if ( $title->isLocal() ) {
-			$wiki = wfWikiID();
+			$wiki = WikiMap::getCurrentWikiId();
 		} else {
 			$wiki = $title->getTransWikiID();
 		}
@@ -290,10 +294,10 @@ class Workflow {
 	 */
 	public function isDeleted() {
 		if ( $this->exists === null ) {
-			// If in the context of a POST request, check against the master DB.
+			// If in the context of a POST request, check against the primary DB.
 			// This is important for recentchanges actions; if a user posts a topic on an
 			// empty flow board then querying the replica results in $this->exists getting set to
-			// false. Querying the master DB correctly returns that the title exists, and the
+			// false. Querying the primary DB correctly returns that the title exists, and the
 			// recent changes event can propagate.
 			$this->exists = Title::newFromID(
 				$this->pageId,
@@ -383,7 +387,7 @@ class Workflow {
 		// addresses which will not all be blocked.
 		// See T61928
 
-		!( $user->isLoggedIn() &&
+		!( $user->isRegistered() &&
 			MediaWikiServices::getInstance()->getPermissionManager()
 				->isBlockedFrom( $user, $this->getOwnerTitle(), true ) );
 	}
@@ -401,24 +405,7 @@ class Workflow {
 	public function getPermissionErrors( $permission, $user, $rigor ) {
 		$title = $this->type === 'topic' ? $this->getOwnerTitle() : $this->getArticleTitle();
 		$permissionManager = MediaWikiServices::getInstance()->getPermissionManager();
-		$editErrors = $permissionManager->getPermissionErrors( $permission, $user, $title, $rigor );
-
-		$errors = $editErrors;
-
-		$titleExistsFlags = ( $rigor === 'secure' ) ? Title::GAID_FOR_UPDATE : 0;
-
-		if ( $permission === 'edit' && !$title->exists( $titleExistsFlags ) ) {
-			// If it's 'edit', but the title doesn't exist, check 'create' as
-			// well.
-
-			$editErrorKeys = array_map( function ( $val ) {
-				return reset( $val );
-			}, $editErrors );
-
-			// Pass in the edit errors to avoid duplicates
-			$createErrors = $permissionManager->getPermissionErrors( 'create', $user, $title, $rigor, $editErrorKeys );
-			$errors = array_merge( $errors, $createErrors );
-		}
+		$errors = $permissionManager->getPermissionErrors( $permission, $user, $title, $rigor );
 
 		if ( count( $errors ) ) {
 			return $errors;

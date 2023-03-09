@@ -6,15 +6,24 @@ use Flow\Model\PostRevision;
 use Flow\Model\Workflow;
 use Flow\SpamFilter\ConfirmEdit;
 use GlobalVarConfig;
+use ParserOptions;
 use Title;
 use User;
 
 /**
  * @covers \Flow\SpamFilter\ConfirmEdit
  */
-class ConfirmEditTest extends \MediaWikiTestCase {
+class ConfirmEditTest extends \MediaWikiIntegrationTestCase {
 
 	public function testValidateDoesntBlowUp() {
+		$services = $this->getServiceContainer();
+
+		$testParserOptions = ParserOptions::newFromUserAndLang( new User,
+			$this->getServiceContainer()->getContentLanguage() );
+
+		$testParser = $services->getParserFactory()->create();
+		$testParser->setOptions( $testParserOptions );
+		$this->setService( 'Parser', $testParser );
 		$filter = new ConfirmEdit;
 		if ( !$filter->enabled() ) {
 			$this->markTestSkipped( 'ConfirmEdit is not enabled' );
@@ -29,24 +38,20 @@ class ConfirmEditTest extends \MediaWikiTestCase {
 		$newRevision = $oldRevision->newNextRevision( $user, 'bar', 'topic-title-wikitext', 'edit-title', $title );
 
 		$request = $this->createMock( \WebRequest::class );
-		$request->expects( $this->any() )
-			->method( 'wasPosted' )
-			->will( $this->returnValue( true ) );
+		$request->method( 'wasPosted' )
+			->willReturn( true );
 
 		$context = $this->createMock( \IContextSource::class );
 
-		$context->expects( $this->any() )
-			->method( 'getUser' )
-			->will( $this->returnValue( $user ) );
+		$context->method( 'getUser' )
+			->willReturn( $user );
 
 		// ConfirmEdit::filter() requires a Config that has most MW globals
-		$context->expects( $this->any() )
-			->method( 'getConfig' )
+		$context->method( 'getConfig' )
 			->willReturn( new GlobalVarConfig );
 
-		$context->expects( $this->any() )
-			->method( 'getRequest' )
-			->will( $this->returnValue( $request ) );
+		$context->method( 'getRequest' )
+			->willReturn( $request );
 
 		$status = $filter->validate( $context, $newRevision, $oldRevision, $title, $ownerTitle );
 		$this->assertInstanceOf( \Status::class, $status );

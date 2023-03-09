@@ -20,8 +20,8 @@ use WikitextContent;
  *
  * @group Flow
  */
-class ConversionStrategyTest extends \MediaWikiTestCase {
-	protected function setUp() : void {
+class ConversionStrategyTest extends \MediaWikiIntegrationTestCase {
+	protected function setUp(): void {
 		parent::setUp();
 
 		// Stash existing $wgEchoNotifications and provide a dummy for these
@@ -132,7 +132,6 @@ EOD
 	/**
 	 * @group Broken
 	 * @dataProvider provideArchiveCleanupRevisionContent
-	 * @param string $content
 	 */
 	public function testCreateArchiveCleanupRevisionContent( $message, $expect, $content ) {
 		if ( !ExtensionRegistry::getInstance()->isLoaded( 'Liquid Threads' ) ) {

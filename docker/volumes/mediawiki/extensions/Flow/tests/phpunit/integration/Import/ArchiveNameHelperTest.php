@@ -10,7 +10,7 @@ use Title;
  *
  * @group Flow
  */
-class ArchiveNameHelperTest extends \MediaWikiTestCase {
+class ArchiveNameHelperTest extends \MediaWikiIntegrationTestCase {
 
 	public function decideArchiveTitleProvider() {
 		return [
@@ -60,9 +60,8 @@ class ArchiveNameHelperTest extends \MediaWikiTestCase {
 		$existsByKey = array_flip( $exists );
 
 		$titleRepo = $this->createMock( \Flow\Repository\TitleRepository::class );
-		$titleRepo->expects( $this->any() )
-			->method( 'exists' )
-			->will( $this->returnCallback( function ( Title $title ) use ( $existsByKey ) {
+		$titleRepo->method( 'exists' )
+			->will( $this->returnCallback( static function ( Title $title ) use ( $existsByKey ) {
 				return isset( $existsByKey[$title->getPrefixedText()] );
 			} ) );
 
@@ -108,9 +107,8 @@ class ArchiveNameHelperTest extends \MediaWikiTestCase {
 		$existsByKey = array_flip( $exists );
 
 		$titleRepo = $this->createMock( \Flow\Repository\TitleRepository::class );
-		$titleRepo->expects( $this->any() )
-			->method( 'exists' )
-			->will( $this->returnCallback( function ( Title $title ) use ( $existsByKey ) {
+		$titleRepo->method( 'exists' )
+			->will( $this->returnCallback( static function ( Title $title ) use ( $existsByKey ) {
 				return isset( $existsByKey[$title->getPrefixedText()] );
 			} ) );
 

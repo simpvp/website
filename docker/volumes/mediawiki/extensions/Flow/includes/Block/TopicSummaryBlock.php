@@ -3,6 +3,7 @@
 namespace Flow\Block;
 
 use Flow\Container;
+use Flow\Conversion\Utils;
 use Flow\Exception\FailCommitException;
 use Flow\Exception\FlowException;
 use Flow\Exception\InvalidActionException;
@@ -60,6 +61,7 @@ class TopicSummaryBlock extends AbstractBlock {
 		'undo-edit-topic-summary'
 	];
 
+	/** @inheritDoc */
 	protected $templates = [
 		'view-topic-summary' => 'single_view',
 		'compare-postsummary-revisions' => 'diff_view',
@@ -92,7 +94,7 @@ class TopicSummaryBlock extends AbstractBlock {
 			case 'undo-edit-topic-summary':
 			case 'edit-topic-summary':
 				$this->validateTopicSummary();
-			break;
+				break;
 
 			default:
 				throw new InvalidActionException( "Unexpected action: {$this->action}", 'invalid-action' );
@@ -100,8 +102,6 @@ class TopicSummaryBlock extends AbstractBlock {
 	}
 
 	/**
-	 * Validate topic summary
-	 *
 	 * @throws InvalidDataException
 	 */
 	protected function validateTopicSummary() {
@@ -216,8 +216,6 @@ class TopicSummaryBlock extends AbstractBlock {
 	}
 
 	/**
-	 * Save topic summary
-	 *
 	 * @throws FailCommitException
 	 * @return array
 	 */
@@ -423,7 +421,8 @@ class TopicSummaryBlock extends AbstractBlock {
 	public function setPageTitle( \OutputPage $out ) {
 		$topic = $this->findTopicTitle();
 		$title = $this->workflow->getOwnerTitle();
-		$out->setPageTitle( $out->msg( 'flow-topic-first-heading', $title->getPrefixedText() ) );
+		$convertedTitle = Utils::getConvertedTitle( $title );
+		$out->setPageTitle( $out->msg( 'flow-topic-first-heading', $convertedTitle ) );
 		if ( $this->permissions->isAllowed( $topic, 'view' ) ) {
 			if ( $this->action === 'undo-edit-topic-summary' ) {
 				$key = 'flow-undo-edit-topic-summary';
@@ -434,10 +433,10 @@ class TopicSummaryBlock extends AbstractBlock {
 				// This must be a rawParam to not expand {{foo}} in the title, it must
 				// not be htmlspecialchar'd because OutputPage::setHtmlTitle handles that.
 				Message::rawParam( $topic->getContent( 'topic-title-plaintext' ) ),
-				$title->getPrefixedText()
+				$convertedTitle
 			) );
 		} else {
-			$out->setHTMLTitle( $title->getPrefixedText() );
+			$out->setHTMLTitle( $convertedTitle );
 		}
 
 		$out->setSubtitle( '&lt; ' .

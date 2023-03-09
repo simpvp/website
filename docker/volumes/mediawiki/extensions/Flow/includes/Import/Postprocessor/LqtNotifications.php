@@ -67,10 +67,9 @@ class LqtNotifications implements Postprocessor {
 		// echo considers an array to be extra parameters.
 		// Overrides existing user-locators, because we don't want unintended
 		// notifications to go out here.
-		$self = $this;
 		$wgEchoNotifications['flow-post-reply']['user-locators'] = [
-			function ( EchoEvent $event ) use ( $self ) {
-				return $self->locateUsersWithPendingLqtNotifications( $event );
+			function ( EchoEvent $event ) {
+				return $this->locateUsersWithPendingLqtNotifications( $event );
 			}
 		];
 	}
@@ -97,12 +96,13 @@ class LqtNotifications implements Postprocessor {
 			'ums_conversation' => $activeThreadId,
 			'ums_read_timestamp' => null,
 		] );
+		$it->setCaller( __METHOD__ );
 
 		// flatten result into a stream of rows
 		$it = new RecursiveIteratorIterator( $it );
 
 		// add callback to convert user id to user objects
-		$it = new EchoCallbackIterator( $it, function ( $row ) {
+		$it = new EchoCallbackIterator( $it, static function ( $row ) {
 			return User::newFromId( $row->ums_user );
 		} );
 

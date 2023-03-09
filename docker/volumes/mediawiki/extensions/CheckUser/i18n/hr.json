@@ -13,7 +13,6 @@
 	},
 	"checkuser-summary": "Ovaj alat pretražuje nedavne promjene i pronalazi IP adrese suradnika ili prikazuje uređivanja/ime suradnika ako je zadana IP adresa. Suradnici i uređivanja mogu biti dobiveni po XFF zaglavljima dodavanjem \"/xff\" na kraj IP adrese. Podržane su IPv4 (CIDR $1-32) i IPv6 (CIDR $2-128) adrese. Rezultat ima maksimalno 5.000 zapisa iz tehničkih razloga. Rabite ovaj alat u skladu s pravilima.",
 	"checkuser-desc": "Daje suradniku pravo za provjeriti IP adrese suradnika i druge informacije",
-	"checkuser-logcase": "Pretraživanje evidencije razlikuje velika i mala slova",
 	"checkuser": "Provjeri suradnika",
 	"checkuserlog": "Evidencija provjere suradnika",
 	"checkuser-contribs": "provjeri suradničke IP adrese",
@@ -45,7 +44,6 @@
 	"checkuser-nomatch-edits": "Nema poklapanja.\nPosljednja izmjena je bila $1 u $2.",
 	"checkuser-check": "Provjeri",
 	"checkuser-log-fail": "Ne mogu dodati zapis",
-	"checkuser-nolog": "Evidencijska datoteka nije nađena",
 	"checkuser-blocked": "Blokiran",
 	"checkuser-gblocked": "Globalno blokiran",
 	"checkuser-locked": "Zaključan",
@@ -94,10 +92,13 @@
 	"checkuser-investigate-filters-legend": "Filtri",
 	"checkuser-investigate-filters-exclude-targets-label": "Skrij navedene suradnike ili IP-adrese",
 	"checkuser-investigate-compare-copy-button-label": "Pokaži wikitekst",
-	"checkuser-investigate-compare-toollinks-geolocate": "Geolociraj",
-	"checkuser-investigate-compare-toollinks-tor-check": "Provjera Tora",
+	"checkuser-investigate-compare-toollinks-ipcheck": "Provjera proxyja",
 	"checkuser-investigate-compare-table-button-add-ip-targets-label": "Pokaži sve suradnike s ovoga IP-a",
 	"checkuser-investigate-compare-table-button-add-user-targets-label": "Prikaži sve IP adrese ovog suradnika",
+	"checkuser-investigate-compare-table-button-checks-label": "Provjere",
+	"checkuser-investigate-compare-table-button-contribs-label": "Doprinosi",
 	"checkuser-investigate-compare-table-cell-unregistered": "Neregistrirani",
-	"checkuser-investigate-compare-table-header-username": "Suradničko ime"
+	"checkuser-investigate-compare-table-header-username": "Suradničko ime",
+	"checkuser-investigate-tour-addusertargets-title": "Potrebnost širega konteksta?",
+	"checkuser-investigate-tour-filterip-title": "Sužavanje Vaše istrage?"
 }

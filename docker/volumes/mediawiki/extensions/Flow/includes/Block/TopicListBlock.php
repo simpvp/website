@@ -15,7 +15,8 @@ use Flow\Model\TopicListEntry;
 use Flow\Model\UUID;
 use Flow\Model\Workflow;
 use MediaWiki\MediaWikiServices;
-use MediaWiki\Storage\RevisionRecord;
+use MediaWiki\Revision\RevisionRecord;
+use UserOptionsUpdateJob;
 
 class TopicListBlock extends AbstractBlock {
 
@@ -29,7 +30,10 @@ class TopicListBlock extends AbstractBlock {
 	 */
 	protected $supportedGetActions = [ 'view', 'view-topiclist' ];
 
-	// @Todo - fill in the template names
+	/**
+	 * @var string[]
+	 * @todo Fill in the template names
+	 */
 	protected $templates = [
 		'view' => '',
 		'new-topic' => 'newtopic',
@@ -293,7 +297,7 @@ class TopicListBlock extends AbstractBlock {
 		/** @var TopicListQuery $query */
 		$query = Container::get( 'query.topiclist' );
 		$found = $query->getResults( $page->getResults() );
-		wfDebugLog( 'FlowDebug', 'Rendering topiclist for ids: ' . implode( ', ', array_map( function ( UUID $id ) {
+		wfDebugLog( 'FlowDebug', 'Rendering topiclist for ids: ' . implode( ', ', array_map( static function ( UUID $id ) {
 			return $id->getAlphadecimal();
 		}, $workflowIds ) ) );
 
@@ -310,10 +314,11 @@ class TopicListBlock extends AbstractBlock {
 	protected function preloadTexts( $options ) {
 		if ( isset( $options['preload'] ) && !empty( $options['preload'] ) ) {
 			$title = \Title::newFromText( $options['preload'] );
-			$page = \WikiPage::factory( $title );
+			$wikiPageFactory = MediaWikiServices::getInstance()->getWikiPageFactory();
+			$page = $wikiPageFactory->newFromTitle( $title );
 			if ( $page->isRedirect() ) {
 				$title = $page->getRedirectTarget();
-				$page = \WikiPage::factory( $title );
+				$page = $wikiPageFactory->newFromTitle( $title );
 			}
 
 			if ( $page->exists() ) {
@@ -348,6 +353,8 @@ class TopicListBlock extends AbstractBlock {
 
 	protected function getFindOptions( array $requestOptions ) {
 		$findOptions = [];
+		$services = MediaWikiServices::getInstance();
+		$userOptionsLookup = $services->getUserOptionsLookup();
 
 		// Compute offset/limit
 		$limit = $this->getLimit( $requestOptions );
@@ -371,34 +378,34 @@ class TopicListBlock extends AbstractBlock {
 		// the sortby option in $findOptions is not directly used for querying,
 		// but is needed by the pager to generate appropriate pagination links.
 		if ( $requestOptions['sortby'] === 'user' ) {
-			$requestOptions['sortby'] = $user->getOption( 'flow-topiclist-sortby' );
+			$requestOptions['sortby'] = $userOptionsLookup->getOption( $user, 'flow-topiclist-sortby' );
 		}
 		switch ( $requestOptions['sortby'] ) {
-		case 'updated':
-			$findOptions = [
-				// @phan-suppress-next-line PhanUselessBinaryAddRight
-				'sortby' => 'updated',
-				'sort' => 'workflow_last_update_timestamp',
-				'order' => 'desc',
-			] + $findOptions;
+			case 'updated':
+				$findOptions = [
+					// @phan-suppress-next-line PhanUselessBinaryAddRight
+					'sortby' => 'updated',
+					'sort' => 'workflow_last_update_timestamp',
+					'order' => 'desc',
+				] + $findOptions;
 
-			if ( $requestOptions['offset-id'] ) {
-				throw new FlowException( 'The `updated` sort order does not allow the `offset-id` parameter. Please use `offset`.' );
-			}
-			break;
+				if ( $requestOptions['offset-id'] ) {
+					throw new FlowException( 'The `updated` sort order does not allow the `offset-id` parameter. Please use `offset`.' );
+				}
+				break;
 
-		case 'newest':
-		default:
-			$findOptions = [
-				// @phan-suppress-next-line PhanUselessBinaryAddRight
-				'sortby' => 'newest',
-				'sort' => 'topic_id',
-				'order' => 'desc',
-			] + $findOptions;
+			case 'newest':
+			default:
+				$findOptions = [
+					// @phan-suppress-next-line PhanUselessBinaryAddRight
+					'sortby' => 'newest',
+					'sort' => 'topic_id',
+					'order' => 'desc',
+				] + $findOptions;
 
-			if ( $requestOptions['offset'] ) {
-				throw new FlowException( 'The `newest` sort order does not allow the `offset` parameter.  Please use `offset-id`.' );
-			}
+				if ( $requestOptions['offset'] ) {
+					throw new FlowException( 'The `newest` sort order does not allow the `offset` parameter.  Please use `offset-id`.' );
+				}
 		}
 
 		if ( $requestOptions['offset-id'] ) {
@@ -419,14 +426,15 @@ class TopicListBlock extends AbstractBlock {
 
 		if (
 			$requestOptions['savesortby']
-			&& !$user->isAnon()
-			&& $user->getOption( 'flow-topiclist-sortby' ) != $findOptions['sortby']
+			&& $user->isRegistered()
+			&& $userOptionsLookup->getOption( $user, 'flow-topiclist-sortby' ) != $findOptions['sortby']
 		) {
-			$user->setOption( 'flow-topiclist-sortby', $findOptions['sortby'] );
-			// Save the user preferences post-send
-			\DeferredUpdates::addCallableUpdate( function () use ( $user ) {
-				$user->saveSettings();
-			} );
+			// Save the new sortby preference.
+			$job = new UserOptionsUpdateJob( [
+				'userId' => $user->getId(),
+				'options' => [ 'flow-topiclist-sortby' => $findOptions['sortby'] ]
+			] );
+			$services->getJobQueueGroupFactory()->makeJobQueueGroup()->lazyPush( $job );
 		}
 
 		return $findOptions;
@@ -454,7 +462,7 @@ class TopicListBlock extends AbstractBlock {
 		// Work around lack of $this in closures until we can use PHP 5.4+ features.
 		$topicRootRevisionCache =& $this->topicRootRevisionCache;
 
-		return $pager->getPage( function ( array $found ) use ( $postStorage, &$topicRootRevisionCache ) {
+		return $pager->getPage( static function ( array $found ) use ( $postStorage, &$topicRootRevisionCache ) {
 			$queries = [];
 			/** @var TopicListEntry[] $found */
 			foreach ( $found as $entry ) {

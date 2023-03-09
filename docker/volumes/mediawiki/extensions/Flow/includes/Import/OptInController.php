@@ -37,8 +37,8 @@ use WikitextContent;
  * Entry point for enabling Flow on a page.
  */
 class OptInController {
-	public static $ENABLE = 'enable';
-	public static $DISABLE = 'disable';
+	public const ENABLE = 'enable';
+	public const DISABLE = 'disable';
 
 	/**
 	 * @var OccupationController
@@ -114,9 +114,9 @@ class OptInController {
 		DeferredUpdates::addCallableUpdate(
 			function () use ( $logger, $outerMethod, $action, $talkpage, $user ) {
 				try {
-					if ( $action === self::$ENABLE ) {
+					if ( $action === self::ENABLE ) {
 						$this->enable( $talkpage, $user );
-					} elseif ( $action === self::$DISABLE ) {
+					} elseif ( $action === self::DISABLE ) {
 						$this->disable( $talkpage );
 					} else {
 						$logger->error( $outerMethod . ': unrecognized action: ' . $action );
@@ -129,13 +129,13 @@ class OptInController {
 							'talkpage' => $talkpage->getPrefixedText(),
 							'user' => $user->getName(),
 							'message' => $exception->getMessage(),
-							'trace' => $exception->getTraceAsString(),
+							'exception' => $exception,
 						]
 					);
 
 					// Rollback both Flow and Core DBs.
 					MediaWikiServices::getInstance()->getDBLoadBalancerFactory()
-						->rollbackMasterChanges( $outerMethod );
+						->rollbackPrimaryChanges( $outerMethod );
 				}
 			},
 			DeferredUpdates::POSTSEND
@@ -217,7 +217,10 @@ class OptInController {
 	 */
 	private function movePage( Title $from, Title $to, $reason = '' ) {
 		$this->occupationController->forceAllowCreation( $to );
-		$mp = new MovePage( $from, $to );
+
+		$mp = MediaWikiServices::getInstance()
+			->getMovePageFactory()
+			->newMovePage( $from, $to );
 		$mp->move( $this->user, $reason, false );
 
 		/*
@@ -225,7 +228,7 @@ class OptInController {
 		 * reusing these objects, we have to make sure they reflect the
 		 * correct IDs.
 		 * We could just Title::GAID_FOR_UPDATE everywhere, but that would
-		 * result in a lot of unneeded calls to master.
+		 * result in a lot of unneeded calls to primary database.
 		 * If these IDs are wrong, we could end up associating workflows
 		 * with an incorrect page (that was just moved)
 		 *
@@ -247,6 +250,7 @@ class OptInController {
 	 * @param string $msgKey
 	 * @param mixed $args
 	 * @throws ImportException
+	 * @return never
 	 */
 	private function fatal( $msgKey, $args = [] ) {
 		throw new ImportException( wfMessage( $msgKey, $args )->inContentLanguage()->text() );
@@ -311,14 +315,13 @@ class OptInController {
 	 * @param-taint escapes_escaped $contentText
 	 */
 	private function createRevision( Title $title, $contentText, $summary ) {
-		$page = WikiPage::factory( $title );
+		$page = MediaWikiServices::getInstance()->getWikiPageFactory()->newFromTitle( $title );
 		$newContent = new WikitextContent( $contentText );
-		$status = $page->doEditContent(
+		$status = $page->doUserEditContent(
 			$newContent,
+			$this->user,
 			$summary,
-			EDIT_FORCE_BOT | EDIT_SUPPRESS_RC,
-			false,
-			$this->user
+			EDIT_FORCE_BOT | EDIT_SUPPRESS_RC
 		);
 
 		if ( !$status->isGood() ) {
@@ -409,7 +412,7 @@ class OptInController {
 	private function restoreExistingFlowBoard( Title $archivedFlowPage, Title $title, $currentTemplate = null ) {
 		$this->editBoardDescription(
 			$archivedFlowPage,
-			function ( $content ) use ( $currentTemplate, $archivedFlowPage ) {
+			static function ( $content ) use ( $currentTemplate, $archivedFlowPage ) {
 				$templateName = wfMessage( 'flow-importer-wt-converted-archive-template' )->inContentLanguage()->plain();
 				$content = TemplateHelper::removeFromHtml( $content, $templateName );
 				if ( $currentTemplate ) {
@@ -430,7 +433,7 @@ class OptInController {
 	 * @throws \MWException
 	 */
 	private function getContent( Title $title ) {
-		$page = WikiPage::factory( $title );
+		$page = MediaWikiServices::getInstance()->getWikiPageFactory()->newFromTitle( $title );
 		$page->loadPageData( WikiPage::READ_LATEST );
 		$revision = $page->getRevisionRecord();
 		if ( $revision ) {
@@ -465,7 +468,7 @@ class OptInController {
 	private function formatTemplate( $name, array $args ) {
 		$arguments = implode( '|',
 			array_map(
-				function ( $key, $value ) {
+				static function ( $key, $value ) {
 					return "$key=$value";
 				},
 				array_keys( $args ),
@@ -484,23 +487,23 @@ class OptInController {
 	private function editBoardDescription( Title $title, callable $newDescriptionCallback, $format = 'html' ) {
 		/*
 		 * We could use WorkflowLoaderFactory::createWorkflowLoader
-		 * to get to the workflow ID, but that uses WikiPage::factory
+		 * to get to the workflow ID, but that uses WikiPageFactory::newFromTitle
 		 * to build the wikipage & get the content. For most requests,
 		 * that'll be better (it reads from replicas), but we really
-		 * need to read from master here.
+		 * need to read from primary database here.
 		 * We'll need WorkflowLoader further down anyway, but we'll
 		 * then have the correct workflow ID to initialize it with!
 		 *
 		 * $title->getLatestRevId() should be fine, it'll be read from
 		 * LinkCache, which has been updated.
 		 * RevisionLookup::getRevisionById will try replica first.
-		 * If it can't find the id, it'll try to find it on master.
+		 * If it can't find the id, it'll try to find it on primary database.
 		 */
 		$revId = $title->getLatestRevID();
 		$revRecord = MediaWikiServices::getInstance()
 			->getRevisionLookup()
 			->getRevisionById( $revId );
-		$content = $revRecord->getContent( SlotRecord::MAIN );
+		$content = $revRecord ? $revRecord->getContent( SlotRecord::MAIN ) : null;
 		if ( !$content instanceof BoardContent ) {
 			throw new InvalidDataException(
 				'Could not find board page for ' . $title->getPrefixedDBkey() . ' (id: ' . $title->getArticleID() . ').' .
@@ -656,7 +659,7 @@ class OptInController {
 		$this->editWikitextContent(
 			$currentTalkpageTitle,
 			wfMessage( 'flow-beta-feature-add-current-template-edit-summary' )->inContentLanguage()->plain(),
-			function ( $content ) use ( $template ) {
+			static function ( $content ) use ( $template ) {
 				return $template . "\n\n" . $content;
 			},
 			'wikitext'
@@ -678,7 +681,7 @@ class OptInController {
 
 		$this->editBoardDescription(
 			$flowArchiveTitle,
-			function ( $content ) use ( $template ) {
+			static function ( $content ) use ( $template ) {
 				$templateName = wfMessage( 'flow-importer-wt-converted-template' )->inContentLanguage()->plain();
 				$content = TemplateHelper::removeFromHtml( $content, $templateName );
 				return $template . "<br/><br/>" . $content;

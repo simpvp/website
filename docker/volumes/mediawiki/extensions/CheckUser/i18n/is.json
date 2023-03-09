@@ -27,12 +27,11 @@
 	"checkuser-all": "allt",
 	"checkuser-nomatch": "Engin samsvörun fannst.",
 	"checkuser-check": "Athuga",
-	"checkuser-nolog": "Engin skrá fundin.",
 	"checkuser-blocked": "Bannaður",
 	"checkuser-locked": "Læstur",
 	"checkuser-search": "Leita",
 	"checkuser-search-submit": "Leita",
 	"checkuser-search-target": "markmið",
 	"checkuser-log-search-target": "Markmið:",
-	"checkuser-reset-action": "endurstilla lykilorð fyrir notandann \"$1\""
+	"checkuser-reset-action": "endurstilla lykilorð fyrir notandann $1"
 }

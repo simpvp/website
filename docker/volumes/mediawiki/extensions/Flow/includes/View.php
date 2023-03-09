@@ -84,7 +84,6 @@ class View extends ContextSource {
 		}
 
 		$robotPolicy = $this->getRobotPolicy( $action, $loader->getWorkflow(), $blocks );
-		// @phan-suppress-next-line SecurityCheck-DoubleEscaped
 		$this->renderApiResponse( $apiResponse, $robotPolicy );
 	}
 
@@ -139,12 +138,10 @@ class View extends ContextSource {
 				'mediawiki.ui.input',
 				'mediawiki.ui.icon',
 				'mediawiki.special.changeslist',
+				'mediawiki.interface.helpers.styles',
 				'mediawiki.editfont.styles',
 				'ext.flow.styles.base' ,
 				'ext.flow.mediawiki.ui.form',
-				'ext.flow.mediawiki.ui.text',
-				'ext.flow.board.styles',
-				'ext.flow.board.topic.styles',
 				'oojs-ui.styles.icons-alerts',
 				'oojs-ui.styles.icons-content',
 				'oojs-ui.styles.icons-layout',
@@ -163,7 +160,7 @@ class View extends ContextSource {
 	}
 
 	protected function handleSubmit( WorkflowLoader $loader, $action, array $parameters ) {
-		$this->getOutput()->enableClientCache( false );
+		$this->getOutput()->disableClientCache();
 
 		$blocksToCommit = $loader->handleSubmit( $this, $action, $parameters );
 		if ( !$blocksToCommit ) {
@@ -214,18 +211,8 @@ class View extends ContextSource {
 			'workflow' => $workflow->isNew() ? '' : $workflow->getId()->getAlphadecimal(),
 			'blocks' => [],
 			// see https://phabricator.wikimedia.org/T223165
-			'isWatched' => (
-				$title->isWatchable() &&
-				MediaWikiServices::getInstance()->getPermissionManager()->userHasRight(
-					$user,
-					'viewmywatchlist'
-				) &&
-				MediaWikiServices::getInstance()->getWatchedItemStore()->isWatched(
-					$user,
-					$title
-				)
-			),
-			'watchable' => !$user->isAnon(),
+			'isWatched' => MediaWikiServices::getInstance()->getWatchlistManager()->isWatched( $user, $title ),
+			'watchable' => $user->isRegistered(),
 			'links' => [
 				'watch-board' => [
 					'url' => $title->getLocalURL( 'action=watch' ),
@@ -237,7 +224,8 @@ class View extends ContextSource {
 		];
 
 		$editToken = $user->getEditToken();
-		$editFont = $user->getOption( 'editfont' );
+		$userOptionsLookup = MediaWikiServices::getInstance()->getUserOptionsLookup();
+		$editFont = $userOptionsLookup->getOption( $user, 'editfont' );
 		$wasPosted = $this->getRequest()->wasPosted();
 		$topicListBlock = null;
 		foreach ( $blocks as $block ) {
@@ -279,7 +267,7 @@ class View extends ContextSource {
 			throw new InvalidActionException( "No blocks accepted action: $action", 'invalid-action' );
 		}
 
-		array_walk_recursive( $apiResponse, function ( &$value ) {
+		array_walk_recursive( $apiResponse, static function ( &$value ) {
 			if ( $value instanceof Anchor ) {
 				$anchor = $value;
 				$value = $value->toArray();
@@ -312,7 +300,7 @@ class View extends ContextSource {
 		$jsonBlobResponse = $apiResponse;
 
 		// Temporary fix for T107170
-		array_walk_recursive( $jsonBlobResponse, function ( &$value, $key ) {
+		array_walk_recursive( $jsonBlobResponse, static function ( &$value, $key ) {
 			if ( stristr( $key, 'Token' ) !== false ) {
 				$value = null;
 			}
@@ -423,7 +411,7 @@ class View extends ContextSource {
 		foreach ( $request->getValues() as $name => $value ) {
 			// between urls only allowing [-_.] as unencoded special chars and
 			// php mangling all of those into '_', we have to split on '_'
-			if ( false !== strpos( $name, '_' ) ) {
+			if ( strpos( $name, '_' ) !== false ) {
 				list( $block, $var ) = explode( '_', $name, 2 );
 				// flow_xxx is global data for all blocks
 				if ( $block === 'flow' ) {

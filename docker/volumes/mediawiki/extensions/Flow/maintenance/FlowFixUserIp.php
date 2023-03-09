@@ -1,14 +1,23 @@
 <?php
 
+namespace Flow\Maintenance;
+
 use Flow\Container;
 use Flow\Data\ManagerGroup;
 use Flow\DbFactory;
+use Flow\Model\Header;
+use Flow\Model\PostRevision;
+use Flow\Model\PostSummary;
 use Flow\Model\UUID;
+use LoggedUpdateMaintenance;
 use Wikimedia\Rdbms\IDatabase;
 
-require_once getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php'
-	: __DIR__ . '/../../../maintenance/Maintenance.php';
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
 
 /**
  * Sets *_user_ip to null when *_user_id is > 0
@@ -28,15 +37,16 @@ class FlowFixUserIp extends LoggedUpdateMaintenance {
 	 */
 	protected $storage;
 
-	private static $types = [
-		'post' => \Flow\Model\PostRevision::class,
-		'header' => \Flow\Model\Header::class,
-		'post-summary' => \Flow\Model\PostSummary::class,
+	private const TYPES = [
+		'post' => PostRevision::class,
+		'header' => Header::class,
+		'post-summary' => PostSummary::class,
 	];
 
 	public function __construct() {
 		parent::__construct();
 
+		$this->setBatchSize( 300 );
 		$this->requireExtension( 'Flow' );
 	}
 
@@ -44,10 +54,10 @@ class FlowFixUserIp extends LoggedUpdateMaintenance {
 		$this->storage = $storage = Container::get( 'storage' );
 		/** @var DbFactory $dbf */
 		$dbf = Container::get( 'db.factory' );
-		$dbw = $dbf->getDB( DB_MASTER );
+		$dbw = $dbf->getDB( DB_PRIMARY );
 		$fname = __METHOD__;
 
-		$runUpdate = function ( $callback ) use ( $dbf, $dbw, $storage, $fname ) {
+		$runUpdate = static function ( $callback ) use ( $dbf, $dbw, $storage, $fname ) {
 			$continue = "\0";
 			do {
 				$dbw->begin( $fname );
@@ -59,10 +69,9 @@ class FlowFixUserIp extends LoggedUpdateMaintenance {
 		};
 
 		$runUpdate( [ $this, 'updateTreeRevision' ] );
-		$self = $this;
 		foreach ( [ 'rev_user', 'rev_mod_user', 'rev_edit_user' ] as $prefix ) {
-			$runUpdate( function ( $dbw, $continue ) use ( $self, $prefix ) {
-				return $self->updateRevision( $prefix, $dbw, $continue );
+			$runUpdate( function ( $dbw, $continue ) use ( $prefix ) {
+				return $this->updateRevision( $prefix, $dbw, $continue );
 			} );
 		}
 
@@ -79,7 +88,7 @@ class FlowFixUserIp extends LoggedUpdateMaintenance {
 				'tree_orig_user_id > 0',
 			],
 			__METHOD__,
-			/* options */[ 'LIMIT' => $this->mBatchSize, 'ORDER BY' => 'tree_rev_id' ]
+			/* options */[ 'LIMIT' => $this->getBatchSize(), 'ORDER BY' => 'tree_rev_id' ]
 		);
 
 		$om = Container::get( 'storage' )->getStorage( 'PostRevision' );
@@ -122,13 +131,13 @@ class FlowFixUserIp extends LoggedUpdateMaintenance {
 				"{$columnPrefix}_ip IS NOT NULL",
 			],
 			__METHOD__,
-			/* options */[ 'LIMIT' => $this->mBatchSize, 'ORDER BY' => 'rev_id' ]
+			/* options */[ 'LIMIT' => $this->getBatchSize(), 'ORDER BY' => 'rev_id' ]
 		);
 
 		$ids = $objs = [];
 		foreach ( $rows as $row ) {
 			$id = UUID::create( $row->rev_id );
-			$type = self::$types[$row->rev_type];
+			$type = self::TYPES[$row->rev_type];
 			$om = $this->storage->getStorage( $type );
 			$obj = $om->get( $id );
 			if ( $obj ) {
@@ -169,5 +178,5 @@ class FlowFixUserIp extends LoggedUpdateMaintenance {
 	}
 }
 
-$maintClass = FlowFixUserIp::class; // Tells it to run the class
+$maintClass = FlowFixUserIp::class;
 require_once RUN_MAINTENANCE_IF_MAIN;

@@ -15,9 +15,12 @@ use Flow\Model\TopicListEntry;
 use Flow\Model\UUID;
 use Flow\Model\Workflow;
 use Flow\OccupationController;
+use MediaWiki\Extension\CentralAuth\CentralAuthServices;
+use MediaWiki\Extension\CentralAuth\User\CentralAuthUser;
+use MediaWiki\MediaWikiServices;
 use MWException;
 use WikiImporter;
-use WikiPage;
+use WikiMap;
 use XMLReader;
 
 class Importer {
@@ -53,7 +56,7 @@ class Importer {
 	/**
 	 * To convert between global and local user ids
 	 *
-	 * @var \CentralIdLookup
+	 * @var \CentralIdLookup|null
 	 */
 	protected $lookup;
 
@@ -69,7 +72,13 @@ class Importer {
 	 */
 	public function __construct( WikiImporter $importer ) {
 		$this->importer = $importer;
-		$this->lookup = \CentralIdLookup::factory( 'CentralAuth' );
+		try {
+			$this->lookup = MediaWikiServices::getInstance()
+				->getCentralIdLookupFactory()
+				->getLookup( 'CentralAuth' );
+		} catch ( \Throwable $unused ) {
+			$this->lookup = null;
+		}
 	}
 
 	/**
@@ -115,7 +124,7 @@ class Importer {
 		$this->boardWorkflow = Workflow::fromStorageRow( [
 			'workflow_id' => $uuid->getAlphadecimal(),
 			'workflow_type' => 'discussion',
-			'workflow_wiki' => wfWikiID(),
+			'workflow_wiki' => WikiMap::getCurrentWikiId(),
 			'workflow_page_id' => $title->getArticleID(),
 			'workflow_namespace' => $title->getNamespace(),
 			'workflow_title_text' => $title->getDBkey(),
@@ -131,7 +140,7 @@ class Importer {
 		}
 
 		$ensureStatus = $occupationController->ensureFlowRevision(
-			WikiPage::factory( $title ),
+			MediaWikiServices::getInstance()->getWikiPageFactory()->newFromTitle( $title ),
 			$this->boardWorkflow
 		);
 		if ( !$ensureStatus->isOK() ) {
@@ -168,7 +177,7 @@ class Importer {
 		$this->topicWorkflow = Workflow::fromStorageRow( [
 			'workflow_id' => $uuid->getAlphadecimal(),
 			'workflow_type' => 'topic',
-			'workflow_wiki' => wfWikiID(),
+			'workflow_wiki' => WikiMap::getCurrentWikiId(),
 			'workflow_page_id' => $title->getArticleID(),
 			'workflow_namespace' => $title->getNamespace(),
 			'workflow_title_text' => $title->getDBkey(),
@@ -194,7 +203,8 @@ class Importer {
 		}
 
 		$ensureStatus = $occupationController->ensureFlowRevision(
-			WikiPage::factory( $this->topicWorkflow->getArticleTitle() ),
+			MediaWikiServices::getInstance()->getWikiPageFactory()
+				->newFromTitle( $this->topicWorkflow->getArticleTitle() ),
 			$this->topicWorkflow
 		);
 		if ( !$ensureStatus->isOK() ) {
@@ -301,10 +311,10 @@ class Importer {
 						$localUser = $this->createLocalUser( (int)$attribs[ $globalUserIdField ] );
 					}
 					$attribs[ $userField . 'id' ] = $localUser->getId();
-					$attribs[ $userField . 'wiki' ] = wfWikiID();
+					$attribs[ $userField . 'wiki' ] = WikiMap::getCurrentWikiId();
 				} elseif ( isset( $attribs[ $userField . 'ip' ] ) ) {
 					// make anons local users
-					$attribs[ $userField . 'wiki' ] = wfWikiID();
+					$attribs[ $userField . 'wiki' ] = WikiMap::getCurrentWikiId();
 				}
 			}
 		}
@@ -358,7 +368,7 @@ class Importer {
 	private function checkTransWikiMode( $boardWorkflowId, $title ) {
 		/** @var DbFactory $dbFactory */
 		$dbFactory = Container::get( 'db.factory' );
-		$workflowExist = (bool)$dbFactory->getDB( DB_MASTER )->selectField(
+		$workflowExist = (bool)$dbFactory->getDB( DB_PRIMARY )->selectField(
 			'flow_workflow',
 			'workflow_id',
 			[ 'workflow_id' => UUID::create( $boardWorkflowId )->getBinary() ],
@@ -379,19 +389,18 @@ class Importer {
 	 * @throws ImportException
 	 */
 	private function createLocalUser( $globalUserId ) {
-		if ( !( $this->lookup instanceof \CentralAuthIdLookup ) ) {
-			throw new ImportException( 'Creating local users is not supported with central id provider: ' .
-				get_class( $this->lookup ) );
+		if ( !$this->lookup ) {
+			throw new ImportException( 'Creating local users is not supported without central id provider' );
 		}
 
-		$globalUser = \CentralAuthUser::newFromId( $globalUserId );
+		$globalUser = CentralAuthUser::newFromId( $globalUserId );
 		$localUser = \User::newFromName( $globalUser->getName() );
 
 		if ( $localUser->getId() ) {
 			throw new ImportException( "User '{$localUser->getName()}' already exists" );
 		}
 
-		$status = \CentralAuthUtils::autoCreateUser( $localUser );
+		$status = CentralAuthServices::getUtilityService()->autoCreateUser( $localUser );
 		if ( !$status->isGood() ) {
 			throw new ImportException(
 				"autoCreateUser failed for {$localUser->getName()}: " . print_r( $status->getErrors(), true )

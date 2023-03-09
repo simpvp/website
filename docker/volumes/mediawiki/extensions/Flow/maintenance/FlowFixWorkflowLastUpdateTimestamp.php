@@ -1,15 +1,29 @@
 <?php
 
+namespace Flow\Maintenance;
+
+use BatchRowIterator;
+use BatchRowUpdate;
+use BatchRowWriter;
+use Exception;
 use Flow\Container;
 use Flow\Data\ManagerGroup;
 use Flow\DbFactory;
+use Flow\Exception\DataModelException;
 use Flow\Exception\FlowException;
+use Flow\Exception\InvalidInputException;
 use Flow\Model\AbstractRevision;
 use Flow\Model\PostRevision;
 use Flow\Model\UUID;
 use Flow\Model\Workflow;
 use Flow\Repository\RootPostLoader;
+use Maintenance;
 use MediaWiki\MediaWikiServices;
+use MWTimestamp;
+use RowUpdateGenerator;
+use stdClass;
+use WikiMap;
+use Wikimedia\Rdbms\IDatabase;
 use Wikimedia\Timestamp\TimestampException;
 
 $IP = getenv( 'MW_INSTALL_PATH' );
@@ -18,8 +32,6 @@ if ( $IP === false ) {
 }
 
 require_once "$IP/maintenance/Maintenance.php";
-require_once "$IP/includes/utils/RowUpdateGenerator.php";
-require_once "$IP/includes/utils/BatchRowWriter.php";
 
 /**
  * @ingroup Maintenance
@@ -42,15 +54,20 @@ class FlowFixWorkflowLastUpdateTimestamp extends Maintenance {
 		$dbFactory = Container::get( 'db.factory' );
 		$storage = Container::get( 'storage' );
 		$rootPostLoader = Container::get( 'loader.root_post' );
+		$dbr = $dbFactory->getDB( DB_REPLICA );
 
-		$iterator = new BatchRowIterator( $dbFactory->getDB( DB_REPLICA ), 'flow_workflow', 'workflow_id', $this->mBatchSize );
+		$iterator = new BatchRowIterator( $dbr, 'flow_workflow', 'workflow_id', $this->getBatchSize() );
 		$iterator->setFetchColumns( [ 'workflow_id', 'workflow_type', 'workflow_last_update_timestamp' ] );
-		$iterator->addConditions( [ 'workflow_wiki' => wfWikiID() ] );
+		$iterator->addConditions( [ 'workflow_wiki' => WikiMap::getCurrentWikiId() ] );
+		$iterator->setCaller( __METHOD__ );
+
+		$writer = new UpdateWorkflowLastUpdateTimestampWriter( $storage, $wgFlowCluster );
+		$writer->setCaller( __METHOD__ );
 
 		$updater = new BatchRowUpdate(
 			$iterator,
-			new UpdateWorkflowLastUpdateTimestampWriter( $storage, $wgFlowCluster ),
-			new UpdateWorkflowLastUpdateTimestampGenerator( $storage, $rootPostLoader )
+			$writer,
+			new UpdateWorkflowLastUpdateTimestampGenerator( $storage, $rootPostLoader, $dbr )
 		);
 		$updater->setOutput( [ $this, 'output' ] );
 		$updater->execute();
@@ -81,12 +98,19 @@ class UpdateWorkflowLastUpdateTimestampGenerator implements RowUpdateGenerator {
 	protected $rootPostLoader;
 
 	/**
+	 * @var IDatabase
+	 */
+	protected $db;
+
+	/**
 	 * @param ManagerGroup $storage
 	 * @param RootPostLoader $rootPostLoader
+	 * @param IDatabase $db
 	 */
-	public function __construct( ManagerGroup $storage, RootPostLoader $rootPostLoader ) {
+	public function __construct( ManagerGroup $storage, RootPostLoader $rootPostLoader, IDatabase $db ) {
 		$this->storage = $storage;
 		$this->rootPostLoader = $rootPostLoader;
+		$this->db = $db;
 	}
 
 	/**
@@ -94,7 +118,7 @@ class UpdateWorkflowLastUpdateTimestampGenerator implements RowUpdateGenerator {
 	 * @return array
 	 * @throws TimestampException
 	 * @throws FlowException
-	 * @throws \Flow\Exception\InvalidInputException
+	 * @throws InvalidInputException
 	 */
 	public function update( $row ) {
 		$uuid = UUID::create( $row->workflow_id );
@@ -119,12 +143,12 @@ class UpdateWorkflowLastUpdateTimestampGenerator implements RowUpdateGenerator {
 		}
 
 		$timestamp = $this->getUpdateTimestamp( $revision )->getTimestamp( TS_MW );
-		if ( $timestamp === $row->workflow_last_update_timestamp ) {
+		if ( $timestamp === wfTimestamp( TS_MW, $row->workflow_last_update_timestamp ) ) {
 			// correct update timestamp already, nothing to update
 			return [];
 		}
 
-		return [ 'workflow_last_update_timestamp' => $timestamp ];
+		return [ 'workflow_last_update_timestamp' => $this->db->timestamp( $timestamp ) ];
 	}
 
 	/**
@@ -132,7 +156,7 @@ class UpdateWorkflowLastUpdateTimestampGenerator implements RowUpdateGenerator {
 	 * @return MWTimestamp
 	 * @throws Exception
 	 * @throws TimestampException
-	 * @throws \Flow\Exception\DataModelException
+	 * @throws DataModelException
 	 */
 	protected function getUpdateTimestamp( AbstractRevision $revision ) {
 		$timestamp = $revision->getRevisionId()->getTimestampObj();
@@ -221,7 +245,7 @@ class UpdateWorkflowLastUpdateTimestampWriter extends BatchRowWriter {
 	 * @return array
 	 */
 	protected function arrayColumn( array $array, $key ) {
-		return array_map( function ( $item ) use ( $key ) {
+		return array_map( static function ( $item ) use ( $key ) {
 			return $item[$key];
 		}, $array );
 	}

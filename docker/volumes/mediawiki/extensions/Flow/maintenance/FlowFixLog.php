@@ -1,11 +1,18 @@
 <?php
 
+namespace Flow\Maintenance;
+
+use BatchRowIterator;
+use BatchRowUpdate;
+use BatchRowWriter;
 use Flow\Collection\PostCollection;
 use Flow\Container;
 use Flow\Data\ManagerGroup;
 use Flow\Exception\InvalidDataException;
 use Flow\Model\PostRevision;
 use Flow\Model\UUID;
+use LoggedUpdateMaintenance;
+use RowUpdateGenerator;
 
 $IP = getenv( 'MW_INSTALL_PATH' );
 if ( $IP === false ) {
@@ -13,7 +20,6 @@ if ( $IP === false ) {
 }
 
 require_once "$IP/maintenance/Maintenance.php";
-require_once "$IP/includes/utils/RowUpdateGenerator.php";
 
 /**
  * Fixes Flow log entries.
@@ -36,7 +42,7 @@ class FlowFixLog extends LoggedUpdateMaintenance {
 	}
 
 	protected function doDBUpdates() {
-		$iterator = new BatchRowIterator( wfGetDB( DB_REPLICA ), 'logging', 'log_id', $this->mBatchSize );
+		$iterator = new BatchRowIterator( wfGetDB( DB_REPLICA ), 'logging', 'log_id', $this->getBatchSize() );
 		$iterator->setFetchColumns( [ 'log_id', 'log_params' ] );
 		$iterator->addConditions( [
 			'log_type' => [ 'delete', 'suppress' ],
@@ -45,10 +51,14 @@ class FlowFixLog extends LoggedUpdateMaintenance {
 				'flow-delete-topic', 'flow-suppress-topic', 'flow-restore-topic',
 			],
 		] );
+		$iterator->setCaller( __METHOD__ );
+
+		$writer = new BatchRowWriter( wfGetDB( DB_PRIMARY ), 'logging' );
+		$writer->setCaller( __METHOD__ );
 
 		$updater = new BatchRowUpdate(
 			$iterator,
-			new BatchRowWriter( wfGetDB( DB_MASTER ), 'logging' ),
+			$writer,
 			new LogRowUpdateGenerator( $this )
 		);
 		$updater->setOutput( [ $this, 'output' ] );

@@ -220,6 +220,15 @@
 	};
 
 	/**
+	 * @param {string} key
+	 * @return {string|Handlebars.SafeString}
+	 */
+	FlowHandlebars.prototype.l10nParseFlowTermsOfUse = function ( key ) {
+		var flowTermsOfUse = require( './flowTermsOfUse.json' );
+		return FlowHandlebars.prototype.html( flowTermsOfUse[ key ] );
+	};
+
+	/**
 	 * Parses the timestamp out of a base-36 UUID, and calls timestamp with it.
 	 *
 	 * Example: `{{uuidTimestamp id "flow-message-x-"}}`
@@ -253,7 +262,7 @@
 		formatter = moment( timestamp );
 
 		// Generate a GUID for this element to find it later
-		guid = ( Math.random() + 1 ).toString( 36 ).substring( 2 );
+		guid = ( Math.random() + 1 ).toString( 36 ).slice( 2 );
 
 		// Store this in the timestamps auto-updater array
 		_timestamp.list.push( { guid: guid, timestamp: timestamp, failcount: 0 } );
@@ -281,7 +290,7 @@
 	 */
 	function timestampAutoUpdate() {
 		var arrayItem, $ago, failed, secondsAgo, text, formatter,
-			currentTime = +new Date() / 1000;
+			currentTime = Date.now() / 1000;
 
 		// Only update elements that need updating (eg. only update minutes every 60s)
 		do {
@@ -357,7 +366,6 @@
 	};
 
 	/**
-	 *
 	 * Example: `{{block this}}`
 	 *
 	 * @param {Object} context
@@ -598,6 +606,7 @@
 	// Register helpers
 	Handlebars.registerHelper( 'l10n', FlowHandlebars.prototype.l10n );
 	Handlebars.registerHelper( 'l10nParse', FlowHandlebars.prototype.l10nParse );
+	Handlebars.registerHelper( 'l10nParseFlowTermsOfUse', FlowHandlebars.prototype.l10nParseFlowTermsOfUse );
 	Handlebars.registerHelper( 'uuidTimestamp', FlowHandlebars.prototype.uuidTimestamp );
 	Handlebars.registerHelper( 'timestamp', FlowHandlebars.prototype.timestamp );
 	Handlebars.registerHelper( 'html', FlowHandlebars.prototype.html );

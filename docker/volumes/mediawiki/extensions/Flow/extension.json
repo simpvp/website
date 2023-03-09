@@ -23,7 +23,7 @@
 	"license-name": "GPL-2.0-or-later",
 	"type": "other",
 	"requires": {
-		"MediaWiki": ">= 1.35.0"
+		"MediaWiki": ">= 1.38.0"
 	},
 	"callback": "Flow\\Hooks::registerExtension",
 	"APIModules": {
@@ -54,6 +54,9 @@
 	},
 	"ExtensionFunctions": [
 		"Flow\\Hooks::initFlowExtension"
+	],
+	"ServiceWiringFiles": [
+		"includes/ServiceWiring.php"
 	],
 	"GroupPermissions": {
 		"*": {
@@ -98,7 +101,12 @@
 		"delete/flow-restore-topic": "Flow\\Log\\ActionFormatter",
 		"suppress/flow-restore-topic": "Flow\\Log\\ActionFormatter",
 		"lock/flow-restore-topic": "Flow\\Log\\ActionFormatter",
-		"import/lqt-to-flow-topic": "Flow\\Log\\LqtImportFormatter"
+		"import/lqt-to-flow-topic": "Flow\\Log\\LqtImportFormatter",
+		"delete/flow-delete-post": "Flow\\Log\\ActionFormatter",
+		"delete/flow-delete-topic": "Flow\\Log\\ActionFormatter",
+		"suppress/flow-suppress-post": "Flow\\Log\\ActionFormatter",
+		"suppress/flow-suppress-topic": "Flow\\Log\\ActionFormatter",
+		"lock/flow-lock-topic": "Flow\\Log\\ActionFormatter"
 	},
 	"SpecialPages": {
 		"StructuredDiscussions": "Flow\\Specials\\SpecialStructuredDiscussions",
@@ -128,8 +136,13 @@
 		"ext.flow.templating": {
 			"localBasePath": "",
 			"remoteExtPath": "Flow",
-			"scripts": [
-				"modules/engine/misc/flow-handlebars.js"
+			"packageFiles": [
+				"modules/engine/misc/flow-handlebars.js",
+				{
+					"name": "modules/engine/misc/flowTermsOfUse.json",
+					"callback": "\\Flow\\Hooks::getTermsOfUseMessagesParsed",
+					"versionCallback": "\\Flow\\Hooks::getTermsOfUseMessagesVersion"
+				}
 			],
 			"dependencies": [
 				"mediawiki.template.handlebars",
@@ -265,12 +278,6 @@
 				"flow-suppress-post-content",
 				"blocklink",
 				"contribslink",
-				"flow-terms-of-use-new-topic",
-				"flow-terms-of-use-reply",
-				"flow-terms-of-use-edit",
-				"flow-terms-of-use-summarize",
-				"flow-terms-of-use-lock-topic",
-				"flow-terms-of-use-unlock-topic",
 				"flow-no-more-fwd",
 				"flow-topic-notification-subscribe-title",
 				"flow-topic-notification-subscribe-description",
@@ -351,15 +358,7 @@
 				"styles/common.less",
 				"styles/errors.less",
 				"styles/history/history-line.less",
-				"styles/mediawiki.ui/anchors.less"
-			],
-			"targets": [
-				"desktop",
-				"mobile"
-			]
-		},
-		"ext.flow.board.styles": {
-			"styles": [
+				"styles/mediawiki.ui/anchors.less",
 				"styles/board/header.less",
 				"styles/board/menu.less",
 				"styles/board/navigation.less",
@@ -369,15 +368,7 @@
 				"styles/nojs.less",
 				"styles/js.less",
 				"styles/board/form-actions.less",
-				"styles/board/terms-of-use.less"
-			],
-			"targets": [
-				"desktop",
-				"mobile"
-			]
-		},
-		"ext.flow.board.topic.styles": {
-			"styles": [
+				"styles/board/terms-of-use.less",
 				"styles/board/topic/titlebar.less",
 				"styles/board/topic/meta.less",
 				"styles/board/topic/post.less",
@@ -409,7 +400,6 @@
 				"engine/components/flow-registry.js",
 				"engine/components/flow-component.js",
 				"engine/misc/flow-api.js",
-				"engine/misc/flow-eventlog.js",
 				"engine/components/common/flow-component-engines.js",
 				"engine/components/common/flow-component-events.js",
 				"engine/components/board/base/flow-boardandhistory-base.js",
@@ -430,7 +420,7 @@
 				"mobile"
 			]
 		},
-		"ext.flow.dm": {
+		"ext.flow.ui": {
 			"scripts": [
 				"flow/mw.flow.js",
 				"flow/dm/mw.flow.dm.js",
@@ -447,19 +437,7 @@
 				"flow/dm/mw.flow.dm.Topic.js",
 				"flow/dm/mw.flow.dm.Board.js",
 				"flow/dm/mw.flow.dm.CategoryItem.js",
-				"flow/dm/mw.flow.dm.Categories.js"
-			],
-			"dependencies": [
-				"mediawiki.api",
-				"oojs"
-			],
-			"targets": [
-				"desktop",
-				"mobile"
-			]
-		},
-		"ext.flow.ui": {
-			"scripts": [
+				"flow/dm/mw.flow.dm.Categories.js",
 				"flow/ui/mw.flow.ui.js",
 				"flow/ui/widgets/mw.flow.ui.CaptchaWidget.js",
 				"flow/ui/mw.flow.ui.CancelConfirmDialog.js",
@@ -529,7 +507,7 @@
 			],
 			"dependencies": [
 				"oojs-ui",
-				"ext.flow.dm",
+				"oojs",
 				"ext.flow.visualEditor.icons",
 				"oojs-ui.styles.icons-editing-advanced",
 				"oojs-ui.styles.icons-editing-list",
@@ -617,6 +595,7 @@
 				"ext.visualEditor.switching",
 				"mediawiki.editfont.styles",
 				"oojs-ui.styles.icons-editing-advanced",
+				"oojs-ui.styles.icons-user",
 				"ext.flow.visualEditor.icons",
 				"mediawiki.api",
 				"mediawiki.util"
@@ -640,12 +619,9 @@
 				}
 			},
 			"images": {
-				"userAdd": {
-					"file": "editor/editors/visualeditor/ui/images/icons/userAdd.svg",
-					"variants": [ "progressive" ]
-				},
 				"newestTopics": {
-					"file": "styles/flow/images/newestTopics.svg"
+					"file": "styles/flow/images/newestTopics.svg",
+					"variants": [ "progressive" ]
 				},
 				"topicCollapse": {
 					"file": {
@@ -706,10 +682,15 @@
 			"engine/misc/test_jquery.findWithParent.js"
 		],
 		"dependencies": [
-			"ext.flow.dm",
+			"ext.flow.ui",
 			"ext.flow",
 			"ext.flow.jquery.findWithParent"
 		]
+	},
+	"HookHandlers": {
+		"AbuseFilter": {
+			"class": "MediaWiki\\Extension\\StructuredDiscussions\\Hooks\\AbuseFilterHandler"
+		}
 	},
 	"Hooks": {
 		"ResourceLoaderRegisterModules": "Flow\\Hooks::onResourceLoaderRegisterModules",
@@ -736,6 +717,7 @@
 		"AbuseFilter-builder": "Flow\\Hooks::onAbuseFilterBuilder",
 		"AbuseFilter-deprecatedVariables": "Flow\\Hooks::onAbuseFilterDeprecatedVariables",
 		"AbuseFilter-computeVariable": "Flow\\Hooks::onAbuseFilterComputeVariable",
+		"AbuseFilter-generateVarsForRecentChange": "AbuseFilter",
 		"AbortEmailNotification": "Flow\\Hooks::onAbortEmailNotification",
 		"BeforeDisplayOrangeAlert": "Flow\\Hooks::onBeforeDisplayOrangeAlert",
 		"EchoAbortEmailNotification": "Flow\\Hooks::onEchoAbortEmailNotification",
@@ -745,7 +727,6 @@
 		"CheckUserFormatRow": "Flow\\Hooks::onCheckUserFormatRow",
 		"SpecialCheckUserGetLinksFromRow": "Flow\\Hooks::onSpecialCheckUserGetLinksFromRow",
 		"CheckUserInsertForRecentChange": "Flow\\Hooks::onCheckUserInsertForRecentChange",
-		"SkinMinervaDefaultModules": "Flow\\Hooks::onSkinMinervaDefaultModules",
 		"IRCLineURL": "Flow\\Hooks::onIRCLineURL",
 		"WhatLinksHereProps": "Flow\\Hooks::onWhatLinksHereProps",
 		"ShowMissingArticle": "Flow\\Hooks::onShowMissingArticle",
@@ -758,7 +739,6 @@
 		"TitleSquidURLs": "Flow\\Hooks::onTitleSquidURLs",
 		"WatchlistEditorBuildRemoveLine": "Flow\\Hooks::onWatchlistEditorBuildRemoveLine",
 		"WatchlistEditorBeforeFormRender": "Flow\\Hooks::onWatchlistEditorBeforeFormRender",
-		"NamespaceIsMovable": "Flow\\Hooks::onNamespaceIsMovable",
 		"CategoryViewer::doCategoryQuery": "Flow\\Hooks::onCategoryViewerDoCategoryQuery",
 		"CategoryViewer::generateLink": "Flow\\Hooks::onCategoryViewerGenerateLink",
 		"ArticleConfirmDelete": "Flow\\Hooks::onArticleConfirmDelete",
@@ -774,7 +754,7 @@
 		"BeforeCreateEchoEvent": "Flow\\Notifications\\Controller::onBeforeCreateEchoEvent",
 		"EchoGetBundleRules": "Flow\\Notifications\\Controller::onEchoGetBundleRules",
 		"GetBetaFeaturePreferences": "Flow\\Hooks::onGetBetaFeaturePreferences",
-		"UserSaveOptions": "Flow\\Hooks::onUserSaveOptions",
+		"SaveUserOptions": "Flow\\Hooks::onSaveUserOptions",
 		"NukeGetNewPages": "Flow\\Hooks::onNukeGetNewPages",
 		"NukeDeletePage": "Flow\\Hooks::onNukeDeletePage",
 		"getUserPermissionsErrors": "Flow\\Hooks::onGetUserPermissionsErrors"
@@ -786,7 +766,8 @@
 			"name": "Topic",
 			"subpages": false,
 			"defaultcontentmodel": "flow-board",
-			"capitallinkoverride": true
+			"capitallinkoverride": true,
+			"movable": false
 		}
 	],
 	"config": {
@@ -831,12 +812,6 @@
 		},
 		"FlowMaxThreadingDepth": {
 			"value": 8
-		},
-		"FlowEditorList": {
-			"value": [
-				"visualeditor",
-				"wikitext"
-			]
 		},
 		"FlowUseMemcache": {
 			"value": true
@@ -939,33 +914,12 @@
 			"value": false
 		}
 	},
-	"attributes": {
-		"EventLogging": {
-			"Schemas": {
-				"FlowReplies": 10561344
-			}
-		}
-	},
 	"load_composer_autoloader": true,
 	"manifest_version": 2,
-	"AutoloadClasses": {
-		"FlowCreateTemplates": "maintenance/FlowCreateTemplates.php",
-		"FlowFixLinks": "maintenance/FlowFixLinks.php",
-		"FlowFixLog": "maintenance/FlowFixLog.php",
-		"FlowPopulateLinksTables": "maintenance/FlowPopulateLinksTables.php",
-		"FlowPopulateRefId": "maintenance/FlowPopulateRefId.php",
-		"FlowSetUserIp": "maintenance/FlowSetUserIp.php",
-		"FlowUpdateBetaFeaturePreference": "maintenance/FlowUpdateBetaFeaturePreference.php",
-		"FlowUpdateRecentChanges": "maintenance/FlowUpdateRecentChanges.php",
-		"FlowUpdateRevisionTypeId": "maintenance/FlowUpdateRevisionTypeId.php",
-		"FlowUpdateUserWiki": "maintenance/FlowUpdateUserWiki.php",
-		"FlowUpdateWorkflowPageId": "maintenance/FlowUpdateWorkflowPageId.php",
-		"LogRowUpdateGenerator": "maintenance/FlowFixLog.php",
-		"MaintenanceDebugLogger": "maintenance/MaintenanceDebugLogger.php",
-		"WorkflowPageIdUpdateGenerator": "maintenance/FlowUpdateWorkflowPageId.php"
-	},
 	"AutoloadNamespaces": {
-		"Flow\\": "includes/"
+		"Flow\\": "includes/",
+		"Flow\\Maintenance\\": "maintenance/",
+		"MediaWiki\\Extension\\StructuredDiscussions\\": "src/"
 	},
 	"TestAutoloadClasses": {
 		"ExternalStoreFlowMock": "tests/phpunit/Mock/ExternalStoreFlowMock.php"

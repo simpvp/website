@@ -1,12 +1,13 @@
 {
 	"@metadata": {
 		"authors": [
+			"Agent",
 			"Fitoschido",
+			"Hasley",
 			"JasterTDC",
 			"Macofe",
 			"MarcoAurelio",
-			"Ryo567",
-			"Agent"
+			"Ryo567"
 		]
 	},
 	"apihelp-query+checkuser-description": "Comprueba qué direcciones IP utiliza el nombre de usuario dado o qué nombres de usuario han utilizado una dirección IP específica.",

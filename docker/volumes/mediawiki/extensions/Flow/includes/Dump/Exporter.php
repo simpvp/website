@@ -17,9 +17,14 @@ use Flow\RevisionActionPermissions;
 use Flow\Search\Iterators\AbstractIterator;
 use Flow\Search\Iterators\HeaderIterator;
 use Flow\Search\Iterators\TopicIterator;
+use MediaWiki\HookContainer\HookContainer;
+use MediaWiki\MediaWikiServices;
+use MediaWiki\Revision\RevisionStore;
 use ReflectionProperty;
+use TitleParser;
 use User;
 use WikiExporter;
+use WikiMap;
 use Wikimedia\Rdbms\IDatabase;
 use Wikimedia\Timestamp\TimestampException;
 use Xml;
@@ -64,35 +69,56 @@ class Exporter extends WikiExporter {
 	];
 
 	/**
-	 * @var ReflectionProperty $prevRevisionProperty Previous revision property
+	 * @var ReflectionProperty Previous revision property
 	 */
 	protected $prevRevisionProperty;
 
 	/**
-	 * @var ReflectionProperty $changeTypeProperty Change type property
+	 * @var ReflectionProperty Change type property
 	 */
 	protected $changeTypeProperty;
 
 	/**
 	 * To convert between local and global user ids
 	 *
-	 * @var \CentralIdLookup
+	 * @var \CentralIdLookup|null
 	 */
 	protected $lookup;
 
 	/**
 	 * @inheritDoc
 	 */
-	public function __construct( $db, $history = WikiExporter::CURRENT,
-		$text = WikiExporter::TEXT ) {
-		parent::__construct( $db, $history, $text );
+	public function __construct(
+		$db,
+		HookContainer $hookContainer,
+		RevisionStore $revisionStore,
+		TitleParser $titleParser,
+		$history = WikiExporter::CURRENT,
+		$text = WikiExporter::TEXT,
+		$limitNamespaces = null
+	) {
+		parent::__construct(
+			$db,
+			$hookContainer,
+			$revisionStore,
+			$titleParser,
+			$history,
+			$text,
+			$limitNamespaces
+		);
 		$this->prevRevisionProperty = new ReflectionProperty( AbstractRevision::class, 'prevRevision' );
 		$this->prevRevisionProperty->setAccessible( true );
 
 		$this->changeTypeProperty = new ReflectionProperty( AbstractRevision::class, 'changeType' );
 		$this->changeTypeProperty->setAccessible( true );
 
-		$this->lookup = \CentralIdLookup::factory( 'CentralAuth' );
+		try {
+			$this->lookup = MediaWikiServices::getInstance()
+				->getCentralIdLookupFactory()
+				->getLookup( 'CentralAuth' );
+		} catch ( \Throwable $unused ) {
+			$this->lookup = null;
+		}
 	}
 
 	public static function schemaVersion() {
@@ -125,8 +151,8 @@ class Exporter extends WikiExporter {
 	 * @param string[]|null $pages Array of DB-prefixed page titles
 	 * @param int|null $startId page_id to start from (inclusive)
 	 * @param int|null $endId page_id to end (exclusive)
-	 * @param int|null $workflowStartId workflow_id, b36-encoded, to start from (inclusive)
-	 * @param int|null $workflowEndId wokflow_id, b36-encoded, to end (exclusive)
+	 * @param string|null $workflowStartId workflow_id, b36-encoded, to start from (inclusive)
+	 * @param string|null $workflowEndId wokflow_id, b36-encoded, to end (exclusive)
 	 * @return BatchRowIterator
 	 */
 	public function getWorkflowIterator( array $pages = null, $startId = null, $endId = null,
@@ -136,8 +162,9 @@ class Exporter extends WikiExporter {
 
 		$iterator = new BatchRowIterator( $dbr, 'flow_workflow', 'workflow_id', 300 );
 		$iterator->setFetchColumns( [ '*' ] );
-		$iterator->addConditions( [ 'workflow_wiki' => wfWikiID() ] );
+		$iterator->addConditions( [ 'workflow_wiki' => WikiMap::getCurrentWikiId() ] );
 		$iterator->addConditions( [ 'workflow_type' => 'discussion' ] );
+		$iterator->setCaller( __METHOD__ );
 
 		if ( $pages ) {
 			$pageConds = [];
@@ -241,7 +268,7 @@ class Exporter extends WikiExporter {
 		try {
 			/** @var PostSummary $summary */
 			$summary = $summaryCollection->getLastRevision();
-			// @phan-suppress-next-line PhanTypeMismatchArgument Phan cannot understand the annotation above
+			'@phan-var PostSummary $summary';
 			$this->formatSummary( $summary );
 		} catch ( \Exception $e ) {
 			// no summary - that's ok!
@@ -408,7 +435,7 @@ class Exporter extends WikiExporter {
 		// combine them
 		$attribs = array_combine( $keys, $values );
 		// and get rid of columns with null values
-		$attribs = array_filter( $attribs, function ( $value ) {
+		$attribs = array_filter( $attribs, static function ( $value ) {
 			return $value !== null;
 		} );
 

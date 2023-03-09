@@ -13,10 +13,12 @@ use Flow\Exception\WikitextException;
 use Flow\Parsoid\ContentFixer;
 use Flow\Parsoid\Fixer\EmptyNodeFixer;
 use Html;
+use ILanguageConverter;
 use Language;
 use Linker;
 use MediaWiki\MediaWikiServices;
 use OutputPage;
+use ParserOptions;
 use RequestContext;
 use Sanitizer;
 use Title;
@@ -48,7 +50,7 @@ abstract class Utils {
 	 * @return string
 	 * @throws WikitextException When the requested conversion is unsupported
 	 * @throws NoParserException When the conversion fails
-	 * @param-taint $content escapes_escaped
+	 * @return-taint none
 	 */
 	public static function convert( $from, $to, $content, Title $title ) {
 		if ( $from === $to || $content === '' ) {
@@ -70,6 +72,9 @@ abstract class Utils {
 				throw new WikitextException( "Conversion from '$from' to '$to' was requested, " .
 					"but this is not supported." );
 			}
+		} elseif ( $from === 'topic-title-wikitext' && ( $to === 'topic-title-html' || $to === 'topic-title-plaintext' ) ) {
+			// FIXME: links need to be proceed by findVariantLinks or equivant function
+			return self::getLanguageConverter()->convert( self::commentParser( $from, $to, $content ) );
 		} else {
 			return self::commentParser( $from, $to, $content );
 		}
@@ -227,8 +232,7 @@ abstract class Utils {
 				"core's Parser only supports 'wikitext' to 'html' conversion", 'process-wikitext' );
 		}
 
-		$options = new \ParserOptions;
-		$options->setTidy( true );
+		$options = ParserOptions::newFromAnon();
 
 		$output = MediaWikiServices::getInstance()->getParser()
 			->parse( $content, $title, $options );
@@ -383,9 +387,12 @@ abstract class Utils {
 	) {
 		$dom = new DOMDocument();
 
-		// Otherwise the parser may attempt to load the dtd from an external source.
-		// See: https://www.mediawiki.org/wiki/XML_External_Entity_Processing
-		$loadEntities = libxml_disable_entity_loader( true );
+		$loadEntities = false;
+		if ( LIBXML_VERSION < 20900 ) {
+			// Otherwise the parser may attempt to load the dtd from an external source.
+			// See: https://www.mediawiki.org/wiki/XML_External_Entity_Processing
+			$loadEntities = libxml_disable_entity_loader( true );
+		}
 
 		// don't output warnings
 		$useErrors = libxml_use_internal_errors( true );
@@ -396,13 +403,15 @@ abstract class Utils {
 		$html = ( $utf8Fragment ? '<?xml encoding="utf-8"?>' : '' ) . $content;
 		$dom->loadHTML( $html, LIBXML_PARSEHUGE );
 
-		libxml_disable_entity_loader( $loadEntities );
+		if ( LIBXML_VERSION < 20900 ) {
+			libxml_disable_entity_loader( $loadEntities );
+		}
 
 		// check error codes; if not in the supplied list of ignorable errors,
 		// throw an exception
 		$errors = array_filter(
 			libxml_get_errors(),
-			function ( $error ) use( $ignoreErrorCodes ) {
+			static function ( $error ) use( $ignoreErrorCodes ) {
 				return !in_array( $error->code, $ignoreErrorCodes );
 			}
 		);
@@ -416,7 +425,7 @@ abstract class Utils {
 				implode(
 					"\n",
 					array_map(
-						function ( $error ) {
+						static function ( $error ) {
 							return $error->message;
 						},
 						$errors
@@ -451,6 +460,22 @@ abstract class Utils {
 	}
 
 	/**
+	 * Saves a document using saveXML, but avoid escaping style blocks with CDATA.
+	 * This is not needed in HTML and breaks the CSS.
+	 *
+	 * @param DOMDocument $doc
+	 * @param DOMNode|null $node the specific node to save
+	 * @return string HTML
+	 */
+	public static function saferSaveXML( DOMDocument $doc, DOMNode $node = null ) {
+		$html = $doc->saveXML( $node );
+		// This regex is only safe as long as attribute values get escaped > chars
+		// This is checked by the testcases
+		$html = preg_replace( '/<style([^>]*)><!\[CDATA\[/i', '<style\1>', $html );
+		return preg_replace( '/\]\]><\/style>/i', '</style>', $html );
+	}
+
+	/**
 	 * Retrieves the html of the node's children.
 	 *
 	 * @param DOMNode|null $node
@@ -466,7 +491,7 @@ abstract class Utils {
 			$fixer->applyToDom( $dom, Title::newMainPage() );
 
 			foreach ( $node->childNodes as $child ) {
-				$html .= $dom->saveXML( $child );
+				$html .= self::saferSaveXML( $dom, $child );
 			}
 		}
 		return $html;
@@ -483,7 +508,7 @@ abstract class Utils {
 		// with a workaround for empty non-void nodes
 		$fixer = new ContentFixer( new EmptyNodeFixer );
 		$fixer->applyToDom( $dom, Title::newMainPage() );
-		return $dom->saveXML( $node );
+		return self::saferSaveXML( $dom, $node );
 	}
 
 	/**
@@ -494,7 +519,7 @@ abstract class Utils {
 	 * put the href of the <base> tag in the base-url attribute;
 	 * and remove the class attribute from the <body>.
 	 *
-	 * @param string $html HTML
+	 * @param string $html
 	 * @return string HTML with <head> information encoded as attributes on the <body>
 	 * @throws WikitextException
 	 * @suppress PhanUndeclaredMethod,PhanTypeMismatchArgumentNullable Apparently a phan bug / wrong built-in PHP stubs
@@ -572,7 +597,10 @@ abstract class Utils {
 		return Title::newFromText( $text );
 	}
 
-	// @todo move into FauxRequest
+	/**
+	 * @todo move into FauxRequest
+	 * @return string
+	 */
 	public static function generateForwardedCookieForCli() {
 		global $wgCookiePrefix;
 
@@ -594,5 +622,34 @@ abstract class Utils {
 		}
 
 		return implode( '; ', $output );
+	}
+
+	/**
+	 * @since 1.35
+	 * @return ILanguageConverter
+	 */
+	private static function getLanguageConverter(): ILanguageConverter {
+		$services = MediaWikiServices::getInstance();
+		return $services
+			->getLanguageConverterFactory()
+			->getLanguageConverter( $services->getContentLanguage() );
+	}
+
+	/**
+	 * @since 1.35
+	 * @param Title $title Title to convert to language variant
+	 * @return string Converted title
+	 */
+	public static function getConvertedTitle( Title $title ) {
+		$ns = $title->getNamespace();
+		$titleText = $title->getText();
+		$langConv = self::getLanguageConverter();
+		$variant = $langConv->getPreferredVariant();
+		if ( $langConv->convertNamespace( $ns, $variant ) ) {
+			return $langConv->convertNamespace( $ns, $variant ) .
+				':' . $langConv->translate( $titleText, $variant );
+		} else {
+			return $langConv->translate( $titleText, $variant );
+		}
 	}
 }

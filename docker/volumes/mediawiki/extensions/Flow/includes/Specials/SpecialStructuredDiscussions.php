@@ -44,11 +44,11 @@ class SpecialStructuredDiscussions extends FormSpecialPage {
 
 	/**
 	 * Initialize $this->type and $this-uuid using the subpage string.
-	 * @param string $par
+	 * @param string|null $par
 	 */
 	protected function setParameter( $par ) {
-		$tokens = explode( '/', $par, 2 );
-		$this->type = $tokens[0];
+		$tokens = $par !== null ? explode( '/', $par, 2 ) : [];
+		$this->type = $tokens[0] ?? '';
 		if ( count( $tokens ) > 1 ) {
 			$this->uuid = $tokens[1];
 		}
@@ -95,7 +95,7 @@ class SpecialStructuredDiscussions extends FormSpecialPage {
 	 * Description shown at the top of the page
 	 * @return string
 	 */
-	protected function preText() {
+	protected function preHtml() {
 		return '<p>' . $this->msg( 'flow-special-desc' )->escaped() . '</p>';
 	}
 

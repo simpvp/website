@@ -10,10 +10,10 @@ use Flow\Model\PostSummary;
 use Flow\Model\TopicListEntry;
 use Flow\Model\Workflow;
 use Flow\OccupationController;
+use MediaWiki\MediaWikiServices;
 use MWTimestamp;
 use Title;
 use User;
-use WikiPage;
 
 class TalkpageImportOperation {
 	/**
@@ -69,7 +69,7 @@ class TalkpageImportOperation {
 
 			// Makes sure the page exists and a Flow-specific revision has been inserted
 			$status = $this->occupationController->ensureFlowRevision(
-				WikiPage::factory( $destinationTitle ),
+				MediaWikiServices::getInstance()->getWikiPageFactory()->newFromTitle( $destinationTitle ),
 				$state->boardWorkflow
 			);
 			$state->logger->debug(
@@ -182,7 +182,7 @@ class TalkpageImportOperation {
 
 		$revisions = $this->importObjectWithHistory(
 			$importHeader,
-			function ( IObjectRevision $rev ) use ( $pageState ) {
+			static function ( IObjectRevision $rev ) use ( $pageState ) {
 				return Header::create(
 					$pageState->boardWorkflow,
 					$pageState->createUser( $rev->getAuthor() ),
@@ -278,7 +278,7 @@ class TalkpageImportOperation {
 
 		$titleRevisions = $this->importObjectWithHistory(
 			$importTopic,
-			function ( IObjectRevision $rev ) use ( $state, $topicWorkflow ) {
+			static function ( IObjectRevision $rev ) use ( $state, $topicWorkflow ) {
 				return PostRevision::createTopicPost(
 					$topicWorkflow,
 					$state->createUser( $rev->getAuthor() ),
@@ -290,7 +290,7 @@ class TalkpageImportOperation {
 			$topicWorkflow->getArticleTitle()
 		);
 
-		// @phan-suppress-next-line PhanTypeMismatchArgument
+		// @phan-suppress-next-line PhanTypeMismatchArgumentSuperType
 		$topicState = new TopicImportState( $state, $topicWorkflow, end( $titleRevisions ) );
 		$topicMetadata = $topicState->getMetadata();
 
@@ -350,7 +350,7 @@ class TalkpageImportOperation {
 
 		$revisions = $this->importObjectWithHistory(
 			$importSummary,
-			function ( IObjectRevision $rev ) use ( $state ) {
+			static function ( IObjectRevision $rev ) use ( $state ) {
 				return PostSummary::create(
 					$state->topicWorkflow->getArticleTitle(),
 					$state->topicTitle,
@@ -400,7 +400,7 @@ class TalkpageImportOperation {
 		} else {
 			$replyRevisions = $this->importObjectWithHistory(
 				$post,
-				function ( IObjectRevision $rev ) use ( $replyTo, $state ) {
+				static function ( IObjectRevision $rev ) use ( $replyTo, $state ) {
 					return $replyTo->reply(
 						$state->topicWorkflow,
 						$state->parent->createUser( $rev->getAuthor() ),

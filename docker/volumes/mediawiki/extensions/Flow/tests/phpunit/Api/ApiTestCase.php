@@ -6,6 +6,7 @@ use Flow\Container;
 use Flow\Hooks;
 use HashConfig;
 use MediaWiki\MediaWikiServices;
+use MediaWiki\Permissions\Authority;
 use User;
 
 /**
@@ -13,6 +14,7 @@ use User;
  * @group medium
  */
 abstract class ApiTestCase extends \ApiTestCase {
+	/** @inheritDoc */
 	protected $tablesUsed = [
 		'flow_ext_ref',
 		'flow_revision',
@@ -27,7 +29,7 @@ abstract class ApiTestCase extends \ApiTestCase {
 		'text',
 	];
 
-	protected function setUp() : void {
+	protected function setUp(): void {
 		parent::setUp();
 
 		$namespaceContentModels = [
@@ -43,11 +45,6 @@ abstract class ApiTestCase extends \ApiTestCase {
 		] ) );
 
 		$this->setCurrentUser( self::$users['sysop']->getUser() );
-	}
-
-	protected function getEditToken( $user = null, $token = 'edittoken' ) {
-		$tokens = $this->getTokenList( $user ?: self::$users['sysop'] );
-		return $tokens[$token];
 	}
 
 	/**
@@ -66,11 +63,13 @@ abstract class ApiTestCase extends \ApiTestCase {
 		array $params,
 		array $session = null,
 		$appendModule = false,
-		User $user = null, $tokenType = null
+		Authority $performer = null,
+		$tokenType = null,
+		$paramPrefix = null
 	) {
 		// reset flow state before each request
 		Hooks::resetFlowExtension();
-		return parent::doApiRequest( $params, $session, $appendModule, $user );
+		return parent::doApiRequest( $params, $session, $appendModule, $performer, $tokenType, $paramPrefix );
 	}
 
 	/**
@@ -79,14 +78,13 @@ abstract class ApiTestCase extends \ApiTestCase {
 	 * @return array
 	 */
 	protected function createTopic( $topicTitle = 'Hi there!' ) {
-		$data = $this->doApiRequest( [
+		$data = $this->doApiRequestWithToken( [
 			'page' => 'Talk:Flow QA',
-			'token' => $this->getEditToken(),
 			'action' => 'flow',
 			'submodule' => 'new-topic',
 			'nttopic' => $topicTitle,
 			'ntcontent' => '...',
-		] );
+		], null, null, 'csrf' );
 
 		$this->assertTrue(
 			isset( $data[0]['flow']['new-topic']['committed']['topiclist']['topic-id'] ),
@@ -98,7 +96,6 @@ abstract class ApiTestCase extends \ApiTestCase {
 
 	protected function expectCacheInvalidate() {
 		$mock = $this->mockCache();
-		$mock->expects( $this->never() )->method( 'set' );
 		$mock->expects( $this->atLeastOnce() )->method( 'delete' );
 		return $mock;
 	}
@@ -114,7 +111,7 @@ abstract class ApiTestCase extends \ApiTestCase {
 			->enableProxyingToOriginalMethods()
 			->getMock();
 
-		$container->extend( 'flowcache', function () use ( $mock ) {
+		$container->extend( 'flowcache', static function () use ( $mock ) {
 			return $mock;
 		} );
 

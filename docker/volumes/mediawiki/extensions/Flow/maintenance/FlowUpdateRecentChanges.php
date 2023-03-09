@@ -1,12 +1,19 @@
 <?php
 
+namespace Flow\Maintenance;
+
 use Flow\Data\Listener\RecentChangesListener;
+use LoggedUpdateMaintenance;
 use MediaWiki\MediaWikiServices;
+use Wikimedia\AtEase\AtEase;
 use Wikimedia\Rdbms\IDatabase;
 
-require_once getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php'
-	: __DIR__ . '/../../../maintenance/Maintenance.php';
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
 
 /**
  * Updates recentchanges entries to contain information to build the
@@ -22,21 +29,15 @@ class FlowUpdateRecentChanges extends LoggedUpdateMaintenance {
 	 */
 	private $completeCount = 0;
 
-	/**
-	 * Max number of records to process at a time
-	 *
-	 * @var int
-	 */
-	protected $batchSize = 300;
-
 	public function __construct() {
 		parent::__construct();
 
+		$this->setBatchSize( 300 );
 		$this->requireExtension( 'Flow' );
 	}
 
 	protected function doDBUpdates() {
-		$dbw = wfGetDB( DB_MASTER );
+		$dbw = wfGetDB( DB_PRIMARY );
 
 		$continue = 0;
 
@@ -63,7 +64,7 @@ class FlowUpdateRecentChanges extends LoggedUpdateMaintenance {
 			/* select */[ 'rc_id', 'rc_params' ],
 			/* conds */[ "rc_id > $continue", 'rc_source' => RecentChangesListener::SRC_FLOW ],
 			__METHOD__,
-			/* options */[ 'LIMIT' => $this->mBatchSize, 'ORDER BY' => 'rc_id' ]
+			/* options */[ 'LIMIT' => $this->getBatchSize(), 'ORDER BY' => 'rc_id' ]
 		);
 
 		$continue = null;
@@ -72,9 +73,9 @@ class FlowUpdateRecentChanges extends LoggedUpdateMaintenance {
 			$continue = $row->rc_id;
 
 			// build params
-			Wikimedia\suppressWarnings();
+			AtEase::suppressWarnings();
 			$params = unserialize( $row->rc_params );
-			Wikimedia\restoreWarnings();
+			AtEase::restoreWarnings();
 			if ( !$params ) {
 				$params = [];
 			}
@@ -184,5 +185,5 @@ class FlowUpdateRecentChanges extends LoggedUpdateMaintenance {
 	}
 }
 
-$maintClass = FlowUpdateRecentChanges::class; // Tells it to run the class
+$maintClass = FlowUpdateRecentChanges::class;
 require_once RUN_MAINTENANCE_IF_MAIN;

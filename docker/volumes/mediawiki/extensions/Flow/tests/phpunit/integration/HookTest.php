@@ -11,11 +11,10 @@ use Flow\Model\TopicListEntry;
 use Flow\Model\Workflow;
 use Flow\OccupationController;
 use MediaWiki\MediaWikiServices;
-use MediaWikiTestCase;
+use MediaWikiIntegrationTestCase;
 use RecentChange;
 use Title;
 use User;
-use WikiPage;
 
 /**
  * @covers Hooks
@@ -23,7 +22,8 @@ use WikiPage;
  * @group Flow
  * @group Database
  */
-class HookTest extends MediaWikiTestCase {
+class HookTest extends MediaWikiIntegrationTestCase {
+	/** @inheritDoc */
 	protected $tablesUsed = [
 		'flow_revision',
 		'flow_topic_list',
@@ -40,7 +40,7 @@ class HookTest extends MediaWikiTestCase {
 		// data providers do not run in the same context as the actual test, as such we
 		// can't create Title objects because they can have the wrong wikiID.  Instead we
 		// pass closures into the test that create the objects within the correct context.
-		$newHeader = function ( User $user ) {
+		$newHeader = static function ( User $user ) {
 			$title = Title::newFromText( 'Talk:Hook_test' );
 			$workflow = Container::get( 'factory.loader.workflow' )
 				->createWorkflowLoader( $title )
@@ -58,7 +58,7 @@ class HookTest extends MediaWikiTestCase {
 				->getUserPermissions( $user ), [ 'flow-create-board' ] );
 			$occupationController->safeAllowCreation( $title, $user );
 			$occupationController->ensureFlowRevision(
-				WikiPage::factory( $title ),
+				MediaWikiServices::getInstance()->getWikiPageFactory()->newFromTitle( $title ),
 				$workflow
 			);
 
@@ -66,7 +66,7 @@ class HookTest extends MediaWikiTestCase {
 
 			return $metadata;
 		};
-		$freshTopic = function ( User $user ) {
+		$freshTopic = static function ( User $user ) {
 			$title = Title::newFromText( 'Talk:Hook_test' );
 			$boardWorkflow = Container::get( 'factory.loader.workflow' )
 				->createWorkflowLoader( $title )
@@ -88,7 +88,7 @@ class HookTest extends MediaWikiTestCase {
 				->getUserPermissions( $user ), [ 'flow-create-board' ] );
 			$occupationController->safeAllowCreation( $title, $user );
 			$occupationController->ensureFlowRevision(
-				WikiPage::factory( $title ),
+				MediaWikiServices::getInstance()->getWikiPageFactory()->newFromTitle( $title ),
 				$boardWorkflow
 			);
 
@@ -100,7 +100,7 @@ class HookTest extends MediaWikiTestCase {
 
 			return $metadata;
 		};
-		$replyToTopic = function ( User $user ) use( $freshTopic ) {
+		$replyToTopic = static function ( User $user ) use( $freshTopic ) {
 			$metadata = $freshTopic( $user );
 			$firstPost = $metadata['topic-title']->reply( $metadata['workflow'], $user, 'ffuts dna ylper', 'wikitext' );
 			$metadata = [
@@ -135,7 +135,7 @@ class HookTest extends MediaWikiTestCase {
 
 			[
 				'Edit topic title',
-				function ( $user ) use( $freshTopic ) {
+				static function ( $user ) use( $freshTopic ) {
 					$metadata = $freshTopic( $user );
 					$title = $metadata['workflow']->getArticleTitle();
 
@@ -151,7 +151,7 @@ class HookTest extends MediaWikiTestCase {
 
 			[
 				'Edit post',
-				function ( $user ) use( $replyToTopic ) {
+				static function ( $user ) use( $replyToTopic ) {
 					$metadata = $replyToTopic( $user );
 					$title = $metadata['workflow']->getArticleTitle();
 					return [
@@ -166,7 +166,7 @@ class HookTest extends MediaWikiTestCase {
 
 			[
 				'Edit board header',
-				function ( $user ) use ( $newHeader ) {
+				static function ( $user ) use ( $newHeader ) {
 					$metadata = $newHeader( $user );
 					$title = $metadata['workflow']->getArticleTitle();
 					return [
@@ -181,7 +181,7 @@ class HookTest extends MediaWikiTestCase {
 
 			[
 				'Moderate a post',
-				function ( $user ) use ( $replyToTopic ) {
+				static function ( $user ) use ( $replyToTopic ) {
 					$metadata = $replyToTopic( $user );
 					return [
 						'revision' => $metadata['revision']->moderate(
@@ -199,7 +199,7 @@ class HookTest extends MediaWikiTestCase {
 
 			[
 				'Moderate a topic',
-				function ( $user ) use ( $freshTopic ) {
+				static function ( $user ) use ( $freshTopic ) {
 					$metadata = $freshTopic( $user );
 					return [
 						'revision' => $metadata['revision']->moderate(

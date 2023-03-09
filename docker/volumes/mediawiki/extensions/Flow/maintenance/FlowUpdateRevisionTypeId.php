@@ -1,12 +1,18 @@
 <?php
 
+namespace Flow\Maintenance;
+
 use Flow\Container;
 use Flow\DbFactory;
+use LoggedUpdateMaintenance;
+use MWException;
+use Wikimedia\Rdbms\IDatabase;
 
 $IP = getenv( 'MW_INSTALL_PATH' );
 if ( $IP === false ) {
 	$IP = __DIR__ . '/../../..';
 }
+
 require_once "$IP/maintenance/Maintenance.php";
 
 /**
@@ -25,11 +31,12 @@ class FlowUpdateRevisionTypeId extends LoggedUpdateMaintenance {
 
 	protected function doDBUpdates() {
 		$revId = '';
-		$count = $this->mBatchSize;
+		$batchSize = $this->getBatchSize();
+		$count = $this->getBatchSize();
 		/** @var DbFactory $dbFactory */
 		$dbFactory = Container::get( 'db.factory' );
 		$dbr = $dbFactory->getDB( DB_REPLICA );
-		$dbw = $dbFactory->getDB( DB_MASTER );
+		$dbw = $dbFactory->getDB( DB_PRIMARY );
 
 		// If table flow_header_revision does not exist, that means the wiki
 		// has run the data migration before or the wiki starts from scratch,
@@ -38,14 +45,14 @@ class FlowUpdateRevisionTypeId extends LoggedUpdateMaintenance {
 			return true;
 		}
 
-		while ( $count == $this->mBatchSize ) {
+		while ( $count == $batchSize ) {
 			$count = 0;
 			$res = $dbr->select(
 				[ 'flow_revision', 'flow_tree_revision', 'flow_header_revision' ],
 				[ 'rev_id', 'rev_type', 'tree_rev_descendant_id', 'header_workflow_id' ],
 				[ 'rev_id > ' . $dbr->addQuotes( $revId ) ],
 				__METHOD__,
-				[ 'ORDER BY' => 'rev_id ASC', 'LIMIT' => $this->mBatchSize ],
+				[ 'ORDER BY' => 'rev_id ASC', 'LIMIT' => $batchSize ],
 				[
 					'flow_tree_revision' => [ 'LEFT JOIN', 'rev_id=tree_rev_id' ],
 					'flow_header_revision' => [ 'LEFT JOIN', 'rev_id=header_rev_id' ]
@@ -59,10 +66,10 @@ class FlowUpdateRevisionTypeId extends LoggedUpdateMaintenance {
 					switch ( $row->rev_type ) {
 						case 'header':
 							$this->updateRevision( $dbw, $row->rev_id, $row->header_workflow_id );
-						break;
+							break;
 						case 'post':
 							$this->updateRevision( $dbw, $row->rev_id, $row->tree_rev_descendant_id );
-						break;
+							break;
 					}
 				}
 			} else {
@@ -76,6 +83,11 @@ class FlowUpdateRevisionTypeId extends LoggedUpdateMaintenance {
 		return true;
 	}
 
+	/**
+	 * @param IDatabase $dbw
+	 * @param int $revId
+	 * @param string $revTypeId
+	 */
 	private function updateRevision( $dbw, $revId, $revTypeId ) {
 		if ( $revTypeId === null ) {
 			// this shouldn't actually be happening, but if it is, ignoring it

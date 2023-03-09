@@ -13,14 +13,14 @@ use Wikimedia\TestingAccessWrapper;
  *
  * @group Flow
  */
-class ControllerTest extends \MediaWikiTestCase {
+class ControllerTest extends \MediaWikiIntegrationTestCase {
 
 	/**
 	 * @var Controller
 	 */
-	protected $notificationController;
+	private $notificationController;
 
-	protected function setUp() : void {
+	protected function setUp(): void {
 		$this->notificationController = Container::get( 'controller.notification' );
 
 		parent::setUp();

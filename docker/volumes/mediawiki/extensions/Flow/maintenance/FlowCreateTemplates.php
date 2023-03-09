@@ -1,10 +1,21 @@
 <?php
 
-use MediaWiki\MediaWikiServices;
+namespace Flow\Maintenance;
 
-require_once getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php'
-	: __DIR__ . '/../../../maintenance/Maintenance.php';
+use Flow\Hooks;
+use LoggedUpdateMaintenance;
+use MediaWiki\MediaWikiServices;
+use MWException;
+use Status;
+use Title;
+use WikitextContent;
+
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
 
 /**
  * The templates will be created with a default content, but can be customized.
@@ -26,7 +37,7 @@ class FlowCreateTemplates extends LoggedUpdateMaintenance {
 	protected function getTemplates() {
 		return [
 			// Template:FlowMention, used to render mentions in Flow's Visual Editor
-			'flow-ve-mention-template-title' => function ( Title $title ) {
+			'flow-ve-mention-template-title' => static function ( Title $title ) {
 				// get "User:" namespace prefix in wiki language
 				$namespaces = MediaWikiServices::getInstance()->getContentLanguage()
 					->getFormattedNamespaces();
@@ -34,26 +45,26 @@ class FlowCreateTemplates extends LoggedUpdateMaintenance {
 				return '@[[' . $namespaces[NS_USER] . ':{{{1|Example}}}|{{{2|{{{1|Example}}}}}}]]';
 			},
 			// LiquidThread import templates
-			'flow-importer-lqt-moved-thread-template' => function ( Title $title ) {
+			'flow-importer-lqt-moved-thread-template' => static function ( Title $title ) {
 				return wfMessage( 'flow-importer-lqt-moved-thread-template-content' )->inContentLanguage()->plain();
 			},
-			'flow-importer-lqt-converted-template' => function ( Title $title ) {
+			'flow-importer-lqt-converted-template' => static function ( Title $title ) {
 				return wfMessage( 'flow-importer-lqt-converted-template-content' )->inContentLanguage()->plain();
 			},
-			'flow-importer-lqt-converted-archive-template' => function ( Title $title ) {
+			'flow-importer-lqt-converted-archive-template' => static function ( Title $title ) {
 				return wfMessage( 'flow-importer-lqt-converted-archive-template-content' )->inContentLanguage()->plain();
 			},
-			'flow-importer-lqt-suppressed-user-template' => function ( Title $title ) {
+			'flow-importer-lqt-suppressed-user-template' => static function ( Title $title ) {
 				return wfMessage( 'flow-importer-lqt-suppressed-user-template-content' )->inContentLanguage()->plain();
 			},
-			'flow-importer-lqt-different-author-signature-template' => function ( Title $title ) {
+			'flow-importer-lqt-different-author-signature-template' => static function ( Title $title ) {
 				return wfMessage( 'flow-importer-lqt-different-author-signature-template-content' )->inContentLanguage()->plain();
 			},
 			// Wikitext import templates
-			'flow-importer-wt-converted-template' => function ( Title $title ) {
+			'flow-importer-wt-converted-template' => static function ( Title $title ) {
 				return wfMessage( 'flow-importer-wt-converted-template-content' )->inContentLanguage()->plain();
 			},
-			'flow-importer-wt-converted-archive-template' => function ( Title $title ) {
+			'flow-importer-wt-converted-archive-template' => static function ( Title $title ) {
 				return wfMessage( 'flow-importer-wt-converted-archive-template-content' )->inContentLanguage()->plain();
 			},
 		];
@@ -74,7 +85,7 @@ class FlowCreateTemplates extends LoggedUpdateMaintenance {
 
 		// make the updatekey unique for the i18n keys of the pages to be created
 		// so we can easily skip this update if there are no changes
-		return __CLASS__ . ':' . md5( implode( ',', $keys ) );
+		return 'FlowCreateTemplates:' . md5( implode( ',', $keys ) );
 	}
 
 	protected function doDBUpdates() {
@@ -100,19 +111,18 @@ class FlowCreateTemplates extends LoggedUpdateMaintenance {
 	 * @throws MWException
 	 */
 	protected function create( Title $title, WikitextContent $content ) {
-		$page = WikiPage::factory( $title );
+		$page = MediaWikiServices::getInstance()->getWikiPageFactory()->newFromTitle( $title );
 
 		if ( $page->getRevisionRecord() !== null ) {
 			// template already exists, don't overwrite it
 			return Status::newGood();
 		}
 
-		return $page->doEditContent(
+		return $page->doUserEditContent(
 			$content,
+			Hooks::getOccupationController()->getTalkpageManager(),
 			'/* Automatically created by Flow */',
-			EDIT_FORCE_BOT | EDIT_SUPPRESS_RC,
-			false,
-			Flow\Hooks::getOccupationController()->getTalkpageManager()
+			EDIT_FORCE_BOT | EDIT_SUPPRESS_RC
 		);
 	}
 }

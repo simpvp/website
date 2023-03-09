@@ -4,9 +4,10 @@
  * @package Flow
  */
 
-/* eslint-env node */
+'use strict';
+
 module.exports = function ( grunt ) {
-	var conf = grunt.file.readJSON( 'extension.json' );
+	const conf = grunt.file.readJSON( 'extension.json' );
 
 	grunt.loadNpmTasks( 'grunt-banana-checker' );
 	grunt.loadNpmTasks( 'grunt-contrib-watch' );
@@ -36,15 +37,11 @@ module.exports = function ( grunt ) {
 			]
 		},
 		stylelint: {
-			options: {
-				syntax: 'less'
-			},
 			all: [
 				'modules/**/*.css',
 				'modules/**/*.less'
 			]
 		},
-		// eslint-disable-next-line es/no-object-assign
 		banana: Object.assign( { options: { requireLowerCase: false } }, conf.MessagesDirs ),
 		watch: {
 			files: [

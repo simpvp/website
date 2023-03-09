@@ -17,12 +17,10 @@ use Flow\Tests\PostRevisionTestCase;
  * @group Database
  */
 class PostCollectionTest extends PostRevisionTestCase {
-	/**
-	 * @var array
-	 */
+	/** @inheritDoc */
 	protected $tablesUsed = [ 'flow_revision', 'flow_tree_revision' ];
 
-	protected function setUp() : void {
+	protected function setUp(): void {
 		parent::setUp();
 
 		// recent changes isn't fully setup here, just skip it
@@ -140,6 +138,6 @@ class PostCollectionTest extends PostRevisionTestCase {
 
 		$revisions = $collection->getAllRevisions();
 
-		$this->assertEquals( count( $this->revisions ), count( $revisions ) );
+		$this->assertCount( count( $this->revisions ), $revisions );
 	}
 }

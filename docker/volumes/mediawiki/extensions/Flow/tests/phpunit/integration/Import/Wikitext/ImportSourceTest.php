@@ -11,7 +11,6 @@ use Flow\Import\IObjectRevision;
 use Flow\Import\Wikitext\ImportSource;
 use Parser;
 use Title;
-use WikiPage;
 use WikitextContent;
 
 /**
@@ -20,11 +19,12 @@ use WikitextContent;
  * @group Flow
  * @group Database
  */
-class ImportSourceTest extends \MediaWikiTestCase {
+class ImportSourceTest extends \MediaWikiIntegrationTestCase {
 
+	/** @inheritDoc */
 	protected $tablesUsed = [ 'page', 'revision', 'ip_changes' ];
 
-	protected function setUp() : void {
+	protected function setUp(): void {
 		parent::setUp();
 
 		// Check for Parsoid
@@ -42,9 +42,10 @@ class ImportSourceTest extends \MediaWikiTestCase {
 		$user = Container::get( 'occupation_controller' )->getTalkpageManager();
 
 		// create a page with some content
-		$status = WikiPage::factory( Title::newMainPage() )
-			->doEditContent(
+		$status = $this->getServiceContainer()->getWikiPageFactory()->newFromTitle( Title::newMainPage() )
+			->doUserEditContent(
 				new WikitextContent( $content ),
+				$this->getTestUser()->getUser(),
 				"and an edit summary"
 			);
 		if ( !$status->isGood() ) {

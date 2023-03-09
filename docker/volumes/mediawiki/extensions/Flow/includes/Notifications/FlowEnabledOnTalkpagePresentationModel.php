@@ -4,14 +4,17 @@ namespace Flow\Notifications;
 
 class FlowEnabledOnTalkpagePresentationModel extends FlowPresentationModel {
 
+	/** @inheritDoc */
 	public function getIconType() {
 		return 'chat';
 	}
 
+	/** @inheritDoc */
 	public function canRender() {
 		return $this->hasTitle();
 	}
 
+	/** @inheritDoc */
 	public function getPrimaryLink() {
 		return [
 			'url' => $this->event->getTitle()->getFullURL(),
@@ -22,7 +25,7 @@ class FlowEnabledOnTalkpagePresentationModel extends FlowPresentationModel {
 	/**
 	 * All Flow notifications have the 'Agent' link except this one.
 	 *
-	 * @return array Empty array
+	 * @return array[]
 	 */
 	public function getSecondaryLinks() {
 		$userTalkLink = $this->getPageLink(
@@ -31,6 +34,7 @@ class FlowEnabledOnTalkpagePresentationModel extends FlowPresentationModel {
 		return [ $userTalkLink ];
 	}
 
+	/** @inheritDoc */
 	public function getHeaderMessage() {
 		$msg = parent::getHeaderMessage();
 		$msg->params( $this->getTruncatedTitleText( $this->event->getTitle(), true ) );

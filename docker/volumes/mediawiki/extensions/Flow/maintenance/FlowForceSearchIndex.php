@@ -1,13 +1,19 @@
 <?php
 
+namespace Flow\Maintenance;
+
 use Flow\Container;
 use Flow\Model\UUID;
 use Flow\Search\Connection;
 use Flow\Search\Updaters\AbstractUpdater;
+use Maintenance;
 
-require_once getenv( 'MW_INSTALL_PATH' ) !== false
-	? getenv( 'MW_INSTALL_PATH' ) . '/maintenance/Maintenance.php'
-	: __DIR__ . '/../../../maintenance/Maintenance.php';
+$IP = getenv( 'MW_INSTALL_PATH' );
+if ( $IP === false ) {
+	$IP = __DIR__ . '/../../..';
+}
+
+require_once "$IP/maintenance/Maintenance.php";
 
 /**
  * Similar to CirrusSearch's forceSearchIndex, this will force indexing of Flow
@@ -44,6 +50,7 @@ class FlowForceSearchIndex extends Maintenance {
 
 		// Set the timeout for maintenance actions
 		$this->connection->setTimeout( $wgFlowSearchMaintenanceTimeout );
+		$batchSize = $this->getBatchSize();
 
 		/** @var AbstractUpdater[] $updaters */
 		$updaters = Container::get( 'search.index.updaters' );
@@ -69,7 +76,7 @@ class FlowForceSearchIndex extends Maintenance {
 			$updater->iterator->setFrom( $fromId );
 			$updater->iterator->setTo( $toId );
 
-			$total += $updater->updateRevisions( null, null, $this->mBatchSize );
+			$total += $updater->updateRevisions( null, null, $batchSize );
 			$this->output( "Indexed $total $updaterType document(s)\n" );
 		}
 	}

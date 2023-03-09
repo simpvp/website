@@ -6,11 +6,14 @@ use DateTime;
 use DateTimeZone;
 use ExtensionRegistry;
 use Flow\Container;
+use Flow\Hooks;
 use Flow\Import\IImportSource;
 use Flow\Import\SourceStore\NullImportSourceStore;
 use Flow\Import\SourceStore\SourceStoreInterface;
 use Flow\Import\Wikitext\ConversionStrategy;
+use LinkCacheTestTrait;
 use MediaWiki\MediaWikiServices;
+use MediaWikiIntegrationTestCase;
 use Parser;
 use Title;
 use WikitextContent;
@@ -20,7 +23,15 @@ use WikitextContent;
  *
  * @group Flow
  */
-class ConversionStrategyTest extends \MediaWikiTestCase {
+class ConversionStrategyTest extends MediaWikiIntegrationTestCase {
+	use LinkCacheTestTrait;
+
+	protected function setUp(): void {
+		parent::setUp();
+		Container::reset();
+		Hooks::resetFlowExtension();
+	}
+
 	public function testCanConstruct() {
 		$this->assertInstanceOf(
 			ConversionStrategy::class,
@@ -133,12 +144,12 @@ class ConversionStrategyTest extends \MediaWikiTestCase {
 	public function testMeetsSubpageRequirements( $pageName, $expectedResult, $subjectExists, $message ) {
 		$strategy = $this->createStrategy();
 		$title = Title::newFromText( $pageName );
-		$subjectTitle = MediaWikiServices::getInstance()->getNamespaceInfo()->getSubjectPage( $title );
-		$linkCache = MediaWikiServices::getInstance()->getLinkCache();
+		$subjectTitle = $this->getServiceContainer()->getNamespaceInfo()->getSubjectPage( $title );
+		$linkCache = $this->getServiceContainer()->getLinkCache();
 
 		// Fake whether $subjectTitle exists
 		if ( $subjectExists ) {
-			$linkCache->addGoodLinkObj(
+			$this->addGoodLinkObject(
 				1, // Fake article ID
 				$subjectTitle
 			);
