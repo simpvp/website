@@ -229,6 +229,9 @@ $wgMaxShellMemory = 2024000;
 # Needed for thumbnail generation. When reinstalling make sure directory exists and is owned by http
 #$wgTmpDirectory = "/home/web/SIMPVP_MEDIAWIKI_TMPDIR";
 
+$wgShowDebug = false;
+$wgDevelopmentWarnings = false;
+error_reporting( 0 );
 # Enable debug
 #$wgShowExceptionDetails = true;
 #$wgShowDBErrorBacktrace = true;
