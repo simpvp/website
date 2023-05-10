@@ -8,5 +8,6 @@
 /docker/volumes/phpbb/styles
 /docker/volumes/phpbb/config.php
 /static/maps/
+/static/tmp/
 *.lock
 *.secret
