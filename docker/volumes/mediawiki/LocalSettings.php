@@ -89,7 +89,7 @@ $wgEnableUploads = true;
 #$wgUseImageMagick = true;
 #$wgImageMagickConvertCommand = "/usr/bin/convert";
 
-$wgFileExtensions = array('png', 'jpg', 'schematic', 'tar', 'gz', 'svg', 'lz');
+$wgFileExtensions = array('png', 'jpg', 'schematic', 'tar', 'gz', 'svg', 'lz', 'txt');
 
 $wgStrictFileExtensions = true;
 
