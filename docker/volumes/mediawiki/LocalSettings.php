@@ -198,7 +198,8 @@ $wgCaptchaTriggers['badlogin']      = true;
 # This is fine. It's not like bots are gonna be able to read this git repo
 # anyway to get the answer.
 $wgCaptchaQuestions = [
-    "Login to the Minecraft server and type /captcha. Enter the secret word in the form:" => [ 'cactus' ],
+    #"Login to the Minecraft server and type /captcha. Enter the secret word in the form:" => [ 'cactus' ],
+    "Ask an admin for the registration code. Enter the code in the form:" => ['laser' ],
 ];
 
 # Disable the prompt for 'real name' on user signup
@@ -207,6 +208,10 @@ $wgHiddenPrefs[] = 'realname';
 # Allow sysops to edit Special:Interwiki
 wfLoadExtension( 'Interwiki' );
 $wgGroupPermissions['sysop']['interwiki'] = true;
+
+# Allow sysops to hide page revisions and log entries
+$wgGroupPermissions['sysop']['deleterevision'] = true;
+$wgGroupPermissions['sysop']['deletelogentry'] = true;
 
 # Trust reverse proxy X-Forwarded-For header
 $wgUsePrivateIPs = true;
